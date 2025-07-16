@@ -23,12 +23,13 @@ class FileOrganizer:
         
         logger.info(f"Initialized file organizer with base dir: {self.base_output_dir}")
     
-    def organize_files(self, job_id: str, phrase_downloads: Dict[str, List[str]]) -> str:
+    def organize_files(self, job_id: str, phrase_downloads: Dict[str, List[str]], source_filename: str = None) -> str:
         """Organize downloaded files into structured project folders.
         
         Args:
             job_id: Unique job identifier
             phrase_downloads: Dictionary mapping phrases to lists of downloaded file paths
+            source_filename: Name of the original video/audio file that triggered this job
             
         Returns:
             Path to the organized project folder
@@ -37,9 +38,18 @@ class FileOrganizer:
             logger.warning(f"No files to organize for job: {job_id}")
             return ""
         
-        # Create project folder with timestamp
+        # Create project folder with timestamp and source filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        project_name = f"broll_project_{job_id[:8]}_{timestamp}"
+        
+        # Include source filename in project name if provided
+        if source_filename:
+            # Extract base name without extension and sanitize
+            source_base = Path(source_filename).stem
+            source_base = self._sanitize_folder_name(source_base)[:30]  # Limit length
+            project_name = f"stockpile_{source_base}_{job_id[:8]}_{timestamp}"
+        else:
+            project_name = f"stockpile_project_{job_id[:8]}_{timestamp}"
+            
         project_dir = self.base_output_dir / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
         
@@ -72,8 +82,6 @@ class FileOrganizer:
             organized_files[phrase] = moved_files
             logger.info(f"Organized {len(moved_files)} files for phrase: '{phrase}'")
         
-        # Create project summary file
-        self._create_project_summary(project_dir, job_id, organized_files)
         
         # Clean up empty phrase directories in the original download location
         self._cleanup_empty_directories()
@@ -140,81 +148,39 @@ class FileOrganizer:
         
         return sanitized[:50]  # Limit length
     
-    def _create_project_summary(self, project_dir: Path, job_id: str, organized_files: Dict[str, List[str]]) -> None:
-        """Create a summary file for the project.
+    def create_project_structure(self, job_id: str, source_filename: str, phrases: List[str]) -> str:
+        """Create the complete project folder structure upfront.
         
         Args:
-            project_dir: Project directory
-            job_id: Job identifier
-            organized_files: Dictionary of organized files by phrase
-        """
-        summary_file = project_dir / "PROJECT_SUMMARY.txt"
-        
-        try:
-            with open(summary_file, 'w', encoding='utf-8') as f:
-                f.write("B-ROLL PROJECT SUMMARY\n")
-                f.write("=" * 50 + "\n\n")
-                f.write(f"Job ID: {job_id}\n")
-                f.write(f"Created: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"Project Directory: {project_dir.name}\n\n")
-                
-                f.write("ORGANIZED FILES BY SEARCH PHRASE:\n")
-                f.write("-" * 40 + "\n\n")
-                
-                total_files = 0
-                for phrase, files in organized_files.items():
-                    f.write(f"Search Phrase: '{phrase}'\n")
-                    f.write(f"Files ({len(files)}):\n")
-                    
-                    for file_path in files:
-                        file_name = Path(file_path).name
-                        file_size = self._get_file_size_mb(file_path)
-                        f.write(f"  - {file_name} ({file_size} MB)\n")
-                    
-                    f.write("\n")
-                    total_files += len(files)
-                
-                f.write(f"TOTAL FILES: {total_files}\n")
-                f.write(f"TOTAL PROJECT SIZE: {self._get_directory_size_mb(project_dir)} MB\n")
-            
-            logger.info(f"Created project summary: {summary_file}")
-            
-        except Exception as e:
-            logger.error(f"Failed to create project summary: {e}")
-    
-    def _get_file_size_mb(self, file_path: str) -> str:
-        """Get file size in MB as formatted string.
-        
-        Args:
-            file_path: Path to file
+            job_id: Unique job identifier
+            source_filename: Name of the original video/audio file
+            phrases: List of search phrases to create folders for
             
         Returns:
-            File size as formatted string
+            Path to the created project directory
         """
-        try:
-            size_bytes = Path(file_path).stat().st_size
-            size_mb = size_bytes / (1024 * 1024)
-            return f"{size_mb:.1f}"
-        except Exception:
-            return "Unknown"
-    
-    def _get_directory_size_mb(self, directory: Path) -> str:
-        """Get total directory size in MB as formatted string.
+        from datetime import datetime
         
-        Args:
-            directory: Directory path
+        # Create project folder with timestamp and source filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if source_filename:
+            source_base = Path(source_filename).stem
+            source_base = self._sanitize_folder_name(source_base)[:30]
+            project_name = f"stockpile_{source_base}_{job_id[:8]}_{timestamp}"
+        else:
+            project_name = f"stockpile_project_{job_id[:8]}_{timestamp}"
             
-        Returns:
-            Directory size as formatted string
-        """
-        try:
-            total_size = sum(
-                f.stat().st_size for f in directory.rglob('*') if f.is_file()
-            )
-            size_mb = total_size / (1024 * 1024)
-            return f"{size_mb:.1f}"
-        except Exception:
-            return "Unknown"
+        project_dir = self.base_output_dir / project_name
+        project_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create phrase subdirectories
+        for phrase in phrases:
+            phrase_dir = project_dir / self._sanitize_folder_name(phrase)
+            phrase_dir.mkdir(parents=True, exist_ok=True)
+            
+        logger.info(f"Created project structure: {project_dir}")
+        return str(project_dir)
     
     def _cleanup_empty_directories(self) -> None:
         """Clean up empty directories in the base output directory."""

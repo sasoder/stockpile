@@ -105,7 +105,8 @@ class NotificationService:
     @retry_api_call(max_retries=3, base_delay=2.0)
     def send_notification(self, job_id: str, status: str, message: str, 
                          output_path: Optional[str] = None, 
-                         drive_folder_url: Optional[str] = None) -> None:
+                         drive_folder_url: Optional[str] = None,
+                         processing_time: Optional[str] = None) -> None:
         """Send email notification about job completion.
         
         Args:
@@ -114,11 +115,12 @@ class NotificationService:
             message: Status message
             output_path: Local output path (if applicable)
             drive_folder_url: Google Drive folder URL (if applicable)
+            processing_time: Human-readable processing time (if applicable)
         """
         try:
             # Create email content
             subject = self._create_subject(job_id, status)
-            body = self._create_email_body(job_id, status, message, output_path, drive_folder_url)
+            body = self._create_email_body(job_id, status, message, output_path, drive_folder_url, processing_time)
             
             # Send email
             self._send_email(subject, body)
@@ -135,11 +137,12 @@ class NotificationService:
     def _create_subject(self, job_id: str, status: str) -> str:
         """Create email subject line."""
         status_text = "Completed" if status == "completed" else "Failed"
-        return f"B-Roll Processing {status_text} - Job {job_id[:8]}"
+        return f"Stockpile {status_text} - Job {job_id[:8]}"
     
     def _create_email_body(self, job_id: str, status: str, message: str,
                           output_path: Optional[str] = None,
-                          drive_folder_url: Optional[str] = None) -> str:
+                          drive_folder_url: Optional[str] = None,
+                          processing_time: Optional[str] = None) -> str:
         """Create email body content."""
         # Create simple text email body
         output_info = ""
@@ -148,15 +151,15 @@ class NotificationService:
         elif output_path:
             output_info = f"\nLocal folder: {output_path}"
         
-        body = f"""B-Roll Processing {status.title()}
+        # Add processing time if available
+        time_info = f"\nProcessing Time: {processing_time}" if processing_time else ""
+        
+        body = f"""Stockpile Processing {status.title()}
 
 Job ID: {job_id}
 Status: {status.title()}
-Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{time_info}
 Message: {message}{output_info}
-
----
-B-Roll Video Processor
 """
         
         return body

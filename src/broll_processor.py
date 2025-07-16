@@ -196,7 +196,15 @@ class BRollProcessor:
         job.search_phrases = search_phrases
         save_job_progress(job, self.db_path)
         
-        # Step 3: Search and download B-roll for each phrase
+        # Step 3: Create project folder structure
+        job.update_status(JobStatus.ORGANIZING)
+        save_job_progress(job, self.db_path)
+        source_filename = Path(job.file_path).name if job.file_path else None
+        project_dir = await self._create_project_structure(job.job_id, source_filename, search_phrases)
+        job.output_path = project_dir
+        save_job_progress(job, self.db_path)
+        
+        # Step 4: Search and download B-roll for each phrase
         job.update_status(JobStatus.SEARCHING_YOUTUBE)
         save_job_progress(job, self.db_path)
         
@@ -208,21 +216,25 @@ class BRollProcessor:
             # Evaluate videos
             scored_videos = await self.evaluate_videos(phrase, video_results)
             
-            # Download top videos
+            # Download top videos directly to project folder
             job.update_status(JobStatus.DOWNLOADING)
             save_job_progress(job, self.db_path)
             
-            downloaded_files = await self.download_videos(scored_videos, phrase)
+            # Get target folder for this phrase
+            phrase_folder = Path(project_dir) / self.file_organizer._sanitize_folder_name(phrase)
+            
+            # Use the video downloader's new method
+            loop = asyncio.get_event_loop()
+            downloaded_files = await loop.run_in_executor(
+                None,
+                self.video_downloader.download_videos_to_folder,
+                scored_videos,
+                phrase,
+                str(phrase_folder)
+            )
             phrase_downloads[phrase] = downloaded_files
         
         job.downloaded_files = phrase_downloads
-        save_job_progress(job, self.db_path)
-        
-        # Step 4: Organize files
-        job.update_status(JobStatus.ORGANIZING)
-        save_job_progress(job, self.db_path)
-        output_path = await self.organize_files(job.job_id, phrase_downloads)
-        job.output_path = output_path
         save_job_progress(job, self.db_path)
         
         # Step 5: Upload to Google Drive if configured
@@ -338,7 +350,7 @@ class BRollProcessor:
         logger.info(f"Downloaded {len(downloaded_files)} files for phrase: {phrase}")
         return downloaded_files
     
-    async def organize_files(self, job_id: str, phrase_downloads: Dict[str, List[str]]) -> str:
+    async def organize_files(self, job_id: str, phrase_downloads: Dict[str, List[str]], source_file_path: str = None) -> str:
         """Organize downloaded files into structured folders."""
         logger.info(f"Organizing files for job: {job_id}")
         
@@ -348,15 +360,33 @@ class BRollProcessor:
         
         # Run file organization in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
+        source_filename = Path(source_file_path).name if source_file_path else None
         output_path = await loop.run_in_executor(
             None,
             self.file_organizer.organize_files,
             job_id,
-            phrase_downloads
+            phrase_downloads,
+            source_filename
         )
         
         logger.info(f"Files organized into: {output_path}")
         return output_path
+    
+    async def _create_project_structure(self, job_id: str, source_filename: str, phrases: List[str]) -> str:
+        """Create the project folder structure upfront."""
+        logger.info(f"Creating project structure for job: {job_id}")
+        
+        # Run project creation in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        project_path = await loop.run_in_executor(
+            None,
+            self.file_organizer.create_project_structure,
+            job_id,
+            source_filename,
+            phrases
+        )
+        
+        return project_path
     
     async def upload_to_drive(self, output_path: str, job_id: str) -> str:
         """Upload organized content to Google Drive."""
@@ -401,17 +431,11 @@ class BRollProcessor:
         output_path = job.output_path if job else None
         drive_folder_url = job.drive_folder_url if job else None
         
-        # Create job details for email
-        job_details = {}
-        if job:
-            if job.transcript:
-                job_details['transcript_length'] = len(job.transcript)
-            if job.search_phrases:
-                job_details['search_phrases'] = job.search_phrases
-                job_details['phrases_processed'] = len(job.search_phrases)
-            if job.downloaded_files:
-                total_downloads = sum(len(files) for files in job.downloaded_files.values())
-                job_details['total_downloads'] = total_downloads
+        # Calculate processing time
+        processing_time = None
+        if job and job.created_at:
+            duration = datetime.now() - job.created_at
+            processing_time = self._format_duration(duration)
         
         # Run email sending in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
@@ -424,8 +448,21 @@ class BRollProcessor:
                 message,
                 output_path,
                 drive_folder_url,
-                job_details
+                processing_time
             )
             logger.info(f"Email notification sent for job {job_id}")
         except Exception as e:
             logger.error(f"Failed to send email notification for job {job_id}: {e}")
+    
+    def _format_duration(self, duration) -> str:
+        """Format a timedelta duration into human-readable text."""
+        total_seconds = int(duration.total_seconds())
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m {seconds}s"
+        elif minutes > 0:
+            return f"{minutes}m {seconds}s"
+        else:
+            return f"{seconds}s"

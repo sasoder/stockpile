@@ -35,6 +35,7 @@ def load_config() -> Dict:
         
         # Processing settings
         'max_videos_per_phrase': int(os.getenv('MAX_VIDEOS_PER_PHRASE', '3')),
+        'max_video_duration_seconds': int(os.getenv('MAX_VIDEO_DURATION_SECONDS', '600')),
         
         # Database
         'database_path': os.getenv('DATABASE_PATH', 'broll_jobs.db'),

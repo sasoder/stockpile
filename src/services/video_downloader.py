@@ -9,8 +9,30 @@ import yt_dlp
 
 from models.video import ScoredVideo
 from utils.retry import retry_download, NetworkError, TemporaryServiceError
+from utils.config import load_config
 
 logger = logging.getLogger(__name__)
+
+
+def video_filter(info: Dict, incomplete: bool = False) -> Optional[str]:
+    """Filter videos based on duration and other criteria.
+    
+    Args:
+        info: Video information dictionary from yt-dlp
+        incomplete: Whether this is incomplete info (not used currently)
+    
+    Returns:
+        String describing why video was filtered, or None if it passes
+    """
+    config = load_config()
+    max_duration = config.get('max_video_duration_seconds', 600)
+    
+    # Check duration
+    duration = info.get('duration')
+    if duration is not None and duration > max_duration:
+        return f"Duration {duration}s exceeds maximum {max_duration}s"
+    
+    return None
 
 
 class VideoDownloader:
@@ -66,6 +88,42 @@ class VideoDownloader:
         logger.info(f"Successfully downloaded {len(downloaded_files)} videos for phrase: '{phrase}'")
         return downloaded_files
     
+    def download_videos_to_folder(self, videos: List[ScoredVideo], phrase: str, target_folder: str) -> List[str]:
+        """Download videos directly to a specific target folder.
+        
+        Args:
+            videos: List of scored videos to download
+            phrase: Search phrase (for logging)
+            target_folder: Exact target folder path
+            
+        Returns:
+            List of paths to downloaded files
+        """
+        if not videos:
+            logger.info(f"No videos to download for phrase: {phrase}")
+            return []
+        
+        target_path = Path(target_folder)
+        target_path.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(f"Downloading {len(videos)} videos for phrase '{phrase}' to: {target_path}")
+        
+        downloaded_files = []
+        for video in videos:
+            try:
+                downloaded_file = self._download_single_video(video, target_path)
+                if downloaded_file:
+                    downloaded_files.append(downloaded_file)
+                    logger.info(f"Downloaded: {Path(downloaded_file).name}")
+                else:
+                    logger.warning(f"Failed to download video: {video.video_id}")
+            except Exception as e:
+                logger.error(f"Error downloading video {video.video_id}: {e}")
+                continue
+        
+        logger.info(f"Successfully downloaded {len(downloaded_files)} videos for phrase: '{phrase}'")
+        return downloaded_files
+    
     def _download_single_video(self, video: ScoredVideo, output_dir: Path) -> Optional[str]:
         """Download a single video with yt-dlp.
         
@@ -103,7 +161,6 @@ class VideoDownloader:
                 'preferedformat': 'mp4',
             }],
             
-            # Limit file size to reasonable B-roll size
             'max_filesize': 100 * 1024 * 1024,  # 100MB max
         }
         
