@@ -1,171 +1,119 @@
-# Stockpile
+# B-Roll Video Processor
 
 An automated Python application that helps video content creators find and organize relevant B-roll footage. The system processes uploaded videos by transcribing audio content, extracting contextual search phrases using AI, finding matching B-roll videos from YouTube, and organizing them into structured project folders.
 
 ## Features
 
-- **Automated Transcription**: Uses OpenAI Whisper to convert video/audio to text
-- **AI-Powered Search**: Leverages Gemini AI to extract relevant search phrases from transcripts
+- **Automated File Detection**: Monitors local folders and Google Drive for new video uploads
+- **Transcription**: Uses OpenAI Whisper to convert video/audio to text
+- **AI-Powered Search**: Extracts relevant search phrases from transcripts using Google Gemini
 - **YouTube Integration**: Searches and downloads high-quality B-roll content using yt-dlp
 - **Flexible Storage**: Supports both local directories and Google Drive for input/output
-- **Smart Organization**: Creates project folders with phrase-based subfolders for easy access
+- **Smart Organization**: Creates project folders with phrase-based subfolders
 - **Progress Tracking**: SQLite database tracks job status with resumable processing
-- **Email Notifications**: Gmail integration for job completion alerts
-- **File Monitoring**: Automatic processing when new files are detected
+- **Email Notifications**: Optional Gmail integration for job completion alerts
 
 ## Installation
 
-1. **Clone the repository**
+### 1. Install system dependencies first
+```bash
+# macOS
+brew install ffmpeg
 
-   ```bash
-   git clone git@github.com:sasoder/stockpile.git
-   cd broll-video-processor
-   ```
+# Ubuntu/Debian
+sudo apt update && sudo apt install ffmpeg
 
-2. **Install Python dependencies**
+# Windows (using Chocolatey)
+choco install ffmpeg
+```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 2. Clone and setup Python environment
+```bash
+git clone <your-repo-url>
+cd broll-video-processor
 
-3. **Install system dependencies**
+# Create virtual environment
+python -m venv venv
 
-   ```bash
-   # macOS
-   brew install ffmpeg
+# Activate it
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
 
-   # Ubuntu/Debian
-   sudo apt update && sudo apt install ffmpeg
+# Install Python dependencies
+pip install -r requirements.txt
+```
 
-   # Windows (using Chocolatey)
-   choco install ffmpeg
-   ```
-
-4. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys and configuration
-   ```
+### 3. Configure environment
+```bash
+cp .env.example .env
+# Edit .env with your actual values
+```
 
 ## Configuration
 
-### Required Environment Variables
+Edit your `.env` file with these settings:
 
-- `GEMINI_API_KEY` - Google Gemini AI API key for phrase extraction
-- At least one input source:
-  - `LOCAL_INPUT_FOLDER` - Local directory to monitor for videos
-  - `GOOGLE_DRIVE_INPUT_FOLDER_ID` - Google Drive folder ID to monitor
-- At least one output destination:
-  - `LOCAL_OUTPUT_FOLDER` - Local directory for organized B-roll
-  - `GOOGLE_DRIVE_CREDENTIALS_PATH` - Path to Google Drive credentials JSON
+### Required
+- `GEMINI_API_KEY` - Get from [Google AI Studio](https://aistudio.google.com/)
 
-### Optional Configuration
+### Input Sources (need at least one)
+- `LOCAL_INPUT_FOLDER=./input` - Local folder to watch for videos
+- `GOOGLE_DRIVE_INPUT_FOLDER_ID=` - Google Drive folder ID to monitor
 
-- `GMAIL_USER` / `GMAIL_PASSWORD` - For email notifications (use Gmail App Password)
-- `WHISPER_MODEL` - Whisper model size (tiny, base, small, medium, large, turbo)
-- `GEMINI_MODEL` - Gemini model to use (default: gemma-3-27b-it)
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Required only if using Google Drive
-- `MAX_CONCURRENT_JOBS` - Number of simultaneous processing jobs (default: 3)
-- `MAX_VIDEOS_PER_PHRASE` - Maximum B-roll videos per search phrase (default: 3)
-- `VIDEO_DURATION_LIMIT` - Maximum video length in seconds (default: 600)
+### Output Destinations (need at least one)  
+- `LOCAL_OUTPUT_FOLDER=./output` - Where to save organized B-roll locally
+- `GOOGLE_DRIVE_OUTPUT_FOLDER_ID=` - Google Drive folder for output
+
+### Google Drive (if using Drive features)
+- `GOOGLE_CLIENT_ID=` - OAuth client ID from Google Cloud Console
+- `GOOGLE_CLIENT_SECRET=` - OAuth client secret
+
+### Optional Settings
+- `GMAIL_USER=` / `GMAIL_PASSWORD=` - For email notifications (use App Password)
+- `WHISPER_MODEL=base` - Whisper model size (tiny/base/small/medium/large)
+- `GEMINI_MODEL=gemma-3-27b-it` - AI model for phrase extraction
+- `MAX_CONCURRENT_JOBS=3` - How many videos to process simultaneously
+- `MAX_VIDEOS_PER_PHRASE=3` - B-roll videos to download per search phrase
 
 ## Usage
 
-### Start the Processor Daemon
-
+### Start the daemon (monitors folders automatically)
 ```bash
-python -m src.main start
+python -m src.main
 ```
 
-### Process a Single File
-
+### Process a single file
 ```bash
 python -m src.main process /path/to/video.mp4
 ```
 
-### Check Status
-
+### Check processing status
 ```bash
 python -m src.main status
 ```
 
-### Command Line Options
+## How It Works
 
-```bash
-# Start with custom config
-python -m src.main start --config /path/to/config.env
+1. **File Detection**: Monitors input folders for new video files
+2. **Transcription**: Extracts audio and converts to text using Whisper
+3. **Phrase Extraction**: AI analyzes transcript to find B-roll search terms
+4. **YouTube Search**: Finds relevant B-roll videos for each phrase
+5. **Download & Organize**: Downloads videos into organized folder structure
+6. **Notification**: Sends email when processing completes
 
-# Process file from Google Drive
-python -m src.main process video.mp4 --source google_drive
-```
+## Supported Formats
 
-## Project Structure
+**Video**: .mp4, .avi, .mov, .mkv, .wmv, .flv, .webm, .m4v  
+**Audio**: .mp3, .wav, .flac, .aac, .ogg, .m4a, .wma
 
-```
-src/
-├── main.py                 # Application entry point
-├── broll_processor.py      # Main processor class
-├── models/
-│   ├── job.py             # ProcessingJob and JobStatus models
-│   └── video.py           # VideoResult and ScoredVideo models
-├── utils/
-│   ├── config.py          # Configuration loading and validation
-│   ├── database.py        # Database utilities
-│   └── retry.py           # Retry logic and backoff
-└── services/              # Service implementations (to be added)
-```
+## Troubleshooting
 
-## Development Status
+**FFmpeg not found**: Make sure ffmpeg is installed and in your PATH
 
-This is the initial implementation with core infrastructure in place. The following components are implemented:
+**Google Drive auth**: First run opens browser for OAuth - follow the prompts
 
-✅ **Core Infrastructure**
+**Gmail not working**: Use an App Password, not your regular Gmail password
 
-- Project structure and configuration
-- Database schema and job management
-- Main processor class with pipeline orchestration
-- Command-line interface and application entry point
-
-🚧 **In Progress**
-
-- Audio transcription service (Whisper integration)
-- AI phrase extraction service (Gemini integration)
-- YouTube search and video evaluation
-- Video downloading with yt-dlp
-- File organization and Google Drive upload
-- Email notification system
-- File monitoring service
-
-## API Keys Setup
-
-### Google Gemini AI (Required)
-
-1. Visit [Google AI Studio](https://aistudio.google.com/)
-2. Create an API key
-3. Add to `.env` as `GEMINI_API_KEY`
-
-### Google Drive (Optional - for cloud storage)
-
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable Google Drive API
-3. Create OAuth 2.0 credentials (Desktop application type)
-4. Download credentials JSON file
-5. Set path in `.env` as `GOOGLE_DRIVE_CREDENTIALS_PATH`
-6. Add Client ID and Secret to `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
-
-### Gmail Notifications (Optional)
-
-1. Enable 2-Factor Authentication on your Gmail account
-2. Generate an App Password (not your regular password)
-3. Add your email to `.env` as `GMAIL_USER`
-4. Add the App Password to `.env` as `GMAIL_PASSWORD`
-
-**Note**: YouTube video search and downloading is handled directly by yt-dlp and requires no API keys.
-
-## License
-
-[Add your license information here]
-
-## Contributing
-
-[Add contributing guidelines here]
+**Import errors**: Make sure you activated the virtual environment and installed requirements.txt
