@@ -76,30 +76,12 @@ class VideoDownloader:
         Returns:
             Path to downloaded file or None if failed
         """
-        # Custom filter for video quality and duration
-        def video_filter(info, *, incomplete):
-            """Filter videos by duration and quality."""
-            duration = info.get('duration')
-            height = info.get('height', 0)
-            
-            # Skip videos longer than 10 minutes or shorter than 10 seconds
-            if duration and (duration > 600 or duration < 10):
-                return 'Video duration not suitable for B-roll'
-            
-            # Skip very low quality videos
-            if height and height < 240:
-                return 'Video quality too low'
-            
-            return None
         
         # Configure yt-dlp options
         ydl_opts = {
             
             # Output template with score prefix for easy identification
             'outtmpl': str(output_dir / f'score{video.score:02d}_%(title)s.%(ext)s'),
-            
-            # Filtering
-            'match_filter': video_filter,
             
             # Metadata options
             'writeinfojson': False,
