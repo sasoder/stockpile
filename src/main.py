@@ -1,11 +1,10 @@
 """Main application entry point for B-Roll Video Processor."""
 
-import argparse
 import asyncio
 import logging
 import signal
 import sys
-from pathlib import Path
+from typing import Optional
 
 from .broll_processor import BRollProcessor
 from .utils.config import setup_logging, load_config
@@ -21,7 +20,7 @@ class BRollApp:
         self.processor: Optional[BRollProcessor] = None
         self.running = False
     
-    async def start(self, config_path: Optional[str] = None) -> None:
+    async def start(self) -> None:
         """Start the B-Roll Processor application."""
         try:
             # Setup logging
@@ -29,7 +28,7 @@ class BRollApp:
             logger.info("Starting B-Roll Video Processor...")
             
             # Initialize processor
-            config = load_config() if not config_path else self._load_custom_config(config_path)
+            config = load_config()
             self.processor = BRollProcessor(config)
             
             # Start processor
@@ -55,27 +54,6 @@ class BRollApp:
         logger.info(f"Received signal {signum}, shutting down gracefully...")
         self.running = False
     
-    def _load_custom_config(self, config_path: str) -> dict:
-        """Load configuration from custom path."""
-        # TODO: Implement custom config loading if needed
-        return load_config()
-    
-    async def process_single_file(self, file_path: str, source: str = "local") -> None:
-        """Process a single file and exit."""
-        setup_logging()
-        
-        try:
-            processor = BRollProcessor()
-            processor.start()
-            
-            logger.info(f"Processing single file: {file_path}")
-            job_id = await processor.process_video(file_path, source)
-            logger.info(f"File processed successfully. Job ID: {job_id}")
-            
-        except Exception as e:
-            logger.error(f"Failed to process file: {e}")
-            sys.exit(1)
-    
     def show_status(self) -> None:
         """Show current processor status and exit."""
         setup_logging(log_level="WARNING")  # Reduce log noise for status display
@@ -98,42 +76,18 @@ class BRollApp:
 
 
 def main():
-    """Main entry point with command line argument parsing."""
-    parser = argparse.ArgumentParser(description="B-Roll Video Processor")
-    parser.add_argument(
-        "--config", 
-        help="Path to custom configuration file"
-    )
-    
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
-    # Start command (default)
-    start_parser = subparsers.add_parser("start", help="Start the processor daemon")
-    start_parser.add_argument("--config", help="Path to custom configuration file")
-    
-    # Process command
-    process_parser = subparsers.add_parser("process", help="Process a single file")
-    process_parser.add_argument("file_path", help="Path to video file to process")
-    process_parser.add_argument("--source", default="local", choices=["local", "google_drive"],
-                               help="Source type of the file")
-    
-    # Status command
-    status_parser = subparsers.add_parser("status", help="Show current status")
-    
-    args = parser.parse_args()
+    """Main entry point."""
+    import sys
     
     app = BRollApp()
     
     try:
-        if args.command == "process":
-            # Process single file
-            asyncio.run(app.process_single_file(args.file_path, args.source))
-        elif args.command == "status":
+        if len(sys.argv) > 1 and sys.argv[1] == "status":
             # Show status
             app.show_status()
         else:
-            # Default: start daemon
-            asyncio.run(app.start(args.config))
+            # Start daemon
+            asyncio.run(app.start())
     except KeyboardInterrupt:
         logger.info("Application interrupted by user")
         sys.exit(0)

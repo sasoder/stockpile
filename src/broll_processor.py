@@ -11,7 +11,6 @@ from .models.job import ProcessingJob, JobStatus
 from .models.video import VideoResult, ScoredVideo
 from .utils.database import init_database, save_job_progress, load_incomplete_jobs
 from .utils.config import load_config, validate_config
-from .utils.retry import retry_api_call, retry_file_operation
 from .services.transcription import TranscriptionService
 from .services.ai_service import AIService
 from .services.youtube_service import YouTubeService
@@ -126,54 +125,6 @@ class BRollProcessor:
         logger.info(f"Created new job: {job_id} for file: {file_path}")
         return job_id
     
-    def get_job_status(self, job_id: str) -> Optional[JobStatus]:
-        """Get the current status of a job."""
-        # Check processing jobs first
-        if job_id in self.processing_jobs:
-            return self.processing_jobs[job_id].status
-        
-        # Check queue
-        for job in self.job_queue:
-            if job.job_id == job_id:
-                return job.status
-        
-        # Load from database
-        from .utils.database import load_job
-        job = load_job(job_id, self.db_path)
-        return job.status if job else None
-    
-    def display_queue_status(self) -> None:
-        """Display current queue status in terminal."""
-        print("\n" + "="*60)
-        print("B-ROLL PROCESSOR - QUEUE STATUS")
-        print("="*60)
-        
-        # Show queue
-        if self.job_queue:
-            print(f"\nQueued Jobs ({len(self.job_queue)}):")
-            for job in self.job_queue:
-                print(f"  {job.job_id[:8]}... | {job.status.value:20} | {Path(job.file_path).name}")
-        else:
-            print("\nNo jobs in queue")
-        
-        # Show processing jobs
-        if self.processing_jobs:
-            print(f"\nProcessing Jobs ({len(self.processing_jobs)}):")
-            for job in self.processing_jobs.values():
-                print(f"  {job.job_id[:8]}... | {job.status.value:20} | {Path(job.file_path).name}")
-        
-        # Show recent completed jobs
-        from .utils.database import get_recent_jobs
-        recent_jobs = get_recent_jobs(self.db_path, limit=5)
-        completed_jobs = [j for j in recent_jobs if j.status in [JobStatus.COMPLETED, JobStatus.FAILED]]
-        
-        if completed_jobs:
-            print(f"\nRecent Completed Jobs ({len(completed_jobs)}):")
-            for job in completed_jobs:
-                status_symbol = "✓" if job.status == JobStatus.COMPLETED else "✗"
-                print(f"  {status_symbol} {job.job_id[:8]}... | {job.status.value:20} | {Path(job.file_path).name}")
-        
-        print("="*60)
     
     def resume_incomplete_jobs(self) -> None:
         """Resume incomplete jobs from database on startup."""
@@ -193,8 +144,10 @@ class BRollProcessor:
     
     async def process_video(self, file_path: str, source: str) -> str:
         """Process a video file through the complete B-roll pipeline."""
-        job_id = self.create_job(file_path, source)
-        job = next(j for j in self.job_queue if j.job_id == job_id)
+        # Find existing job in queue
+        job = next((j for j in self.job_queue if j.file_path == file_path), None)
+        if not job:
+            return None
         
         try:
             # Move job to processing

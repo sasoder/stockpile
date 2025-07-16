@@ -168,18 +168,3 @@ def get_recent_jobs(db_path: str, limit: int = 10) -> List[ProcessingJob]:
         return jobs
 
 
-def cleanup_old_jobs(db_path: str, days_old: int = 30) -> int:
-    """Clean up completed jobs older than specified days."""
-    with get_db_connection(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            DELETE FROM jobs 
-            WHERE status IN ('completed', 'failed') 
-            AND datetime(updated_at) < datetime('now', '-{} days')
-        '''.format(days_old))
-        
-        deleted_count = cursor.rowcount
-        conn.commit()
-        
-        logger.info(f"Cleaned up {deleted_count} old jobs")
-        return deleted_count
