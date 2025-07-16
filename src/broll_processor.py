@@ -7,18 +7,18 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import asyncio
 
-from .models.job import ProcessingJob, JobStatus
-from .models.video import VideoResult, ScoredVideo
-from .utils.database import init_database, save_job_progress, load_incomplete_jobs
-from .utils.config import load_config, validate_config
-from .services.transcription import TranscriptionService
-from .services.ai_service import AIService
-from .services.youtube_service import YouTubeService
-from .services.video_downloader import VideoDownloader
-from .services.file_organizer import FileOrganizer
-from .services.notification import NotificationService
-from .services.drive_service import DriveService
-from .services.file_monitor import FileMonitor
+from models.job import ProcessingJob, JobStatus
+from models.video import VideoResult, ScoredVideo
+from utils.database import init_database, save_job_progress, load_incomplete_jobs
+from utils.config import load_config, validate_config
+from services.transcription import TranscriptionService
+from services.ai_service import AIService
+from services.youtube_service import YouTubeService
+from services.video_downloader import VideoDownloader
+from services.file_organizer import FileOrganizer
+from services.notification import NotificationService
+from services.drive_service import DriveService
+from services.file_monitor import FileMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +58,11 @@ class BRollProcessor:
         self.video_downloader = VideoDownloader(output_dir)
         self.file_organizer = FileOrganizer(output_dir)
         
-        # Initialize notification service if Gmail is configured
-        gmail_user = self.config.get('gmail_user')
-        gmail_password = self.config.get('gmail_password')
-        if gmail_user and gmail_password:
-            self.notification_service = NotificationService(gmail_user, gmail_password)
+        # Initialize notification service if Google credentials are configured
+        client_id = self.config.get('google_client_id')
+        client_secret = self.config.get('google_client_secret')
+        if client_id and client_secret:
+            self.notification_service = NotificationService(client_id, client_secret)
         else:
             self.notification_service = None
         
@@ -393,7 +393,7 @@ class BRollProcessor:
         job = self.processing_jobs.get(job_id)
         if not job:
             # Try to load from database if not in processing jobs
-            from .utils.database import load_job
+            from utils.database import load_job
             job = load_job(job_id, self.db_path)
         
         # Prepare notification details

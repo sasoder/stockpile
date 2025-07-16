@@ -15,8 +15,6 @@ google-auth-httplib2>=0.2.0
 # File monitoring
 watchdog>=4.0.0
 
-# Database
-sqlite3  # Built-in
 
 # Async support
 aiofiles>=23.2.0

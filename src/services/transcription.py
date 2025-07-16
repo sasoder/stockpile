@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Optional
 import whisper
 
-from ..utils.retry import retry_api_call, retry_file_operation
-from ..utils.config import get_supported_video_formats, get_supported_audio_formats
+from utils.retry import retry_api_call, retry_file_operation
+from utils.config import get_supported_video_formats, get_supported_audio_formats
 
 logger = logging.getLogger(__name__)
 

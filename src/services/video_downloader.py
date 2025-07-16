@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import yt_dlp
 
-from ..models.video import ScoredVideo
-from ..utils.retry import retry_download, NetworkError, TemporaryServiceError
+from models.video import ScoredVideo
+from utils.retry import retry_download, NetworkError, TemporaryServiceError
 
 logger = logging.getLogger(__name__)
 

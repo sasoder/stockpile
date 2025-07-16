@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 
-from ..models.job import ProcessingJob, JobStatus
+from models.job import ProcessingJob, JobStatus
 
 logger = logging.getLogger(__name__)
 

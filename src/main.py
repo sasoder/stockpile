@@ -6,9 +6,9 @@ import signal
 import sys
 from typing import Optional
 
-from .broll_processor import BRollProcessor
-from .utils.config import setup_logging, load_config
-from .utils.database import get_job_statistics
+from broll_processor import BRollProcessor
+from utils.config import setup_logging, load_config
+from utils.database import get_job_statistics
 
 logger = logging.getLogger(__name__)
 

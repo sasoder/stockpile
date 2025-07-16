@@ -13,8 +13,8 @@ from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 import os
 
-from ..utils.config import get_supported_video_formats, get_supported_audio_formats
-from ..utils.retry import retry_api_call, NetworkError
+from utils.config import get_supported_video_formats, get_supported_audio_formats
+from utils.retry import retry_api_call, NetworkError
 
 logger = logging.getLogger(__name__)
 

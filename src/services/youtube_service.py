@@ -4,8 +4,8 @@ import logging
 import yt_dlp
 from typing import List, Dict, Optional
 
-from ..models.video import VideoResult
-from ..utils.retry import retry_api_call, NetworkError, TemporaryServiceError
+from models.video import VideoResult
+from utils.retry import retry_api_call, NetworkError, TemporaryServiceError
 
 logger = logging.getLogger(__name__)
 

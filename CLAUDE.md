@@ -18,10 +18,10 @@ pip install -r requirements.txt
 ### Running the Daemon
 ```bash
 # Start daemon (monitors folders continuously)
-python -m src.main
+cd src && python main.py
 
 # Check job status
-python -m src.main status
+cd src && python main.py status
 ```
 
 ## Core Architecture
@@ -61,7 +61,7 @@ Environment variables in `.env`:
 - **Input**: `LOCAL_INPUT_FOLDER` OR `GOOGLE_DRIVE_INPUT_FOLDER_ID`
 - **Output**: `LOCAL_OUTPUT_FOLDER` OR `GOOGLE_DRIVE_OUTPUT_FOLDER_ID`
 - **Google Drive**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **Notifications**: `GMAIL_USER`, `GMAIL_PASSWORD` (app password)
+- **Notifications**: Uses same Google credentials as Drive API
 
 ## Known Issues
 

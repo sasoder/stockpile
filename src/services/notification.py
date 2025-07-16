@@ -1,34 +1,89 @@
-"""Email notification service for job completion alerts."""
+"""Email notification service for job completion alerts using Gmail API."""
 
 import logging
-import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
-from typing import Optional, Dict
+import base64
+import os
+from email.mime.text import MIMEText
+from typing import Optional
 from datetime import datetime
-from pathlib import Path
 
-from ..utils.retry import retry_api_call, NetworkError
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+from utils.retry import retry_api_call, NetworkError
 
 logger = logging.getLogger(__name__)
 
+# Gmail API scope for sending emails
+SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+
 
 class NotificationService:
-    """Service for sending email notifications about job completion."""
+    """Service for sending email notifications using Gmail API."""
     
-    def __init__(self, gmail_user: str, gmail_password: str):
-        """Initialize notification service with Gmail credentials.
+    def __init__(self, client_id: str, client_secret: str):
+        """Initialize notification service with Google OAuth credentials.
         
         Args:
-            gmail_user: Gmail email address
-            gmail_password: Gmail app password (not regular password)
+            client_id: Google OAuth client ID
+            client_secret: Google OAuth client secret
         """
-        self.gmail_user = gmail_user
-        self.gmail_password = gmail_password
-        self.smtp_server = "smtp.gmail.com"
-        self.smtp_port = 587
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.service = None
+        self.user_email = None
         
-        logger.info(f"Initialized notification service for: {gmail_user}")
+        # Create credentials from client ID and secret
+        self._setup_credentials()
+        
+        logger.info("Initialized Gmail API notification service")
+    
+    def _setup_credentials(self):
+        """Set up Google OAuth credentials."""
+        creds = None
+        
+        # Check if token.json exists
+        if os.path.exists("token.json"):
+            creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+        
+        # If there are no (valid) credentials available, let the user log in
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                # Create client config from environment variables
+                client_config = {
+                    "installed": {
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token",
+                        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                        "redirect_uris": ["http://localhost"]
+                    }
+                }
+                
+                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+                creds = flow.run_local_server(port=0)
+            
+            # Save the credentials for the next run
+            with open("token.json", "w") as token:
+                token.write(creds.to_json())
+        
+        # Build the Gmail service
+        self.service = build("gmail", "v1", credentials=creds)
+        
+        # Get user's email address
+        try:
+            profile = self.service.users().getProfile(userId="me").execute()
+            self.user_email = profile["emailAddress"]
+            logger.info(f"Gmail API authenticated for: {self.user_email}")
+        except HttpError as error:
+            logger.error(f"Failed to get user profile: {error}")
+            raise
     
     @retry_api_call(max_retries=3, base_delay=2.0)
     def send_notification(self, job_id: str, status: str, message: str, 
@@ -46,21 +101,18 @@ class NotificationService:
         try:
             # Create email content
             subject = self._create_subject(job_id, status)
-            body = self._create_email_body(
-                job_id, status, message, output_path, 
-                drive_folder_url
-            )
+            body = self._create_email_body(job_id, status, message, output_path, drive_folder_url)
             
             # Send email
             self._send_email(subject, body)
             
             logger.info(f"Notification sent for job {job_id}: {status}")
             
+        except HttpError as error:
+            logger.error(f"Gmail API error sending notification for job {job_id}: {error}")
+            raise NetworkError(f"Gmail API error: {error}")
         except Exception as e:
             logger.error(f"Failed to send notification for job {job_id}: {e}")
-            # Convert network errors to retryable errors
-            if "network" in str(e).lower() or "connection" in str(e).lower():
-                raise NetworkError(f"Network error sending notification: {e}")
             raise
     
     def _create_subject(self, job_id: str, status: str) -> str:
@@ -92,37 +144,34 @@ B-Roll Video Processor
         
         return body
     
-    
     def _send_email(self, subject: str, body: str) -> None:
-        """Send the actual email using SMTP.
+        """Send the actual email using Gmail API.
         
         Args:
             subject: Email subject
-            body: Email body (HTML)
+            body: Email body (plain text)
         """
         try:
             # Create message
-            msg = MimeMultipart('alternative')
-            msg['From'] = self.gmail_user
-            msg['To'] = self.gmail_user  # Send to self
-            msg['Subject'] = subject
+            message = MIMEText(body, 'plain')
+            message['To'] = self.user_email
+            message['From'] = self.user_email
+            message['Subject'] = subject
             
-            # Add plain text body
-            text_part = MimeText(body, 'plain')
-            msg.attach(text_part)
+            # Encode message
+            raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
             
-            # Connect to Gmail SMTP server
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()  # Enable encryption
-                server.login(self.gmail_user, self.gmail_password)
-                
-                # Send email
-                text = msg.as_string()
-                server.sendmail(self.gmail_user, [self.gmail_user], text)
+            # Send message
+            send_message = self.service.users().messages().send(
+                userId="me",
+                body={"raw": raw_message}
+            ).execute()
             
-            logger.debug("Email sent successfully via Gmail SMTP")
+            logger.debug(f"Email sent successfully. Message ID: {send_message['id']}")
             
-        except Exception as e:
-            logger.error(f"Failed to send email: {e}")
+        except HttpError as error:
+            logger.error(f"Gmail API error: {error}")
             raise
-    
+        except Exception as e:
+            logger.error(f"Unexpected error sending email: {e}")
+            raise

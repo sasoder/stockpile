@@ -2,3 +2,6 @@
 .kiro
 input
 output
+*.pyc
+src/broll_jobs.db
+src/broll_processor.log

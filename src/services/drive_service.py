@@ -10,7 +10,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 
-from ..utils.retry import retry_api_call, NetworkError, TemporaryServiceError
+from utils.retry import retry_api_call, NetworkError, TemporaryServiceError
 
 logger = logging.getLogger(__name__)
 

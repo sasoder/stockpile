@@ -6,8 +6,8 @@ from typing import List, Dict, Optional
 from google.genai import Client
 from google.genai import types
 
-from ..utils.retry import retry_api_call, APIRateLimitError, NetworkError
-from ..models.video import VideoResult, ScoredVideo
+from utils.retry import retry_api_call, APIRateLimitError, NetworkError
+from models.video import VideoResult, ScoredVideo
 
 logger = logging.getLogger(__name__)
 

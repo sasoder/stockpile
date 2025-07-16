@@ -24,9 +24,6 @@ def load_config() -> Dict:
         'local_output_folder': os.getenv('LOCAL_OUTPUT_FOLDER'),
         'google_drive_output_folder_id': os.getenv('GOOGLE_DRIVE_OUTPUT_FOLDER_ID'),
         
-        # Email notifications
-        'gmail_user': os.getenv('GMAIL_USER'),
-        'gmail_password': os.getenv('GMAIL_PASSWORD'),  # App password
         
         # Model configurations
         'whisper_model': os.getenv('WHISPER_MODEL', 'base'),
@@ -88,11 +85,6 @@ def validate_config(config: Dict) -> List[str]:
         if not config.get('google_client_id') or not config.get('google_client_secret'):
             errors.append("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET required for Google Drive integration")
     
-    # Validate Gmail configuration if provided
-    gmail_user = config.get('gmail_user')
-    gmail_password = config.get('gmail_password')
-    if gmail_user and not gmail_password:
-        errors.append("GMAIL_PASSWORD required when GMAIL_USER is provided")
     
     # YouTube search is handled by yt-dlp directly, no API key validation needed
     
