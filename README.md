@@ -17,7 +17,7 @@ An automated Python application that helps video content creators find and organ
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:sasoder/stockpile.git
    cd broll-video-processor
    ```
 
@@ -58,10 +58,13 @@ An automated Python application that helps video content creators find and organ
 
 ### Optional Configuration
 
-- `GMAIL_USER` / `GMAIL_PASSWORD` - For email notifications
-- `YOUTUBE_API_KEY` - For YouTube video search
+- `GMAIL_USER` / `GMAIL_PASSWORD` - For email notifications (use Gmail App Password)
 - `WHISPER_MODEL` - Whisper model size (tiny, base, small, medium, large, turbo)
-- `GEMINI_MODEL` - Gemini model to use (default: gemini-2.0-flash-001)
+- `GEMINI_MODEL` - Gemini model to use (default: gemma-3-27b-it)
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Required only if using Google Drive
+- `MAX_CONCURRENT_JOBS` - Number of simultaneous processing jobs (default: 3)
+- `MAX_VIDEOS_PER_PHRASE` - Maximum B-roll videos per search phrase (default: 3)
+- `VIDEO_DURATION_LIMIT` - Maximum video length in seconds (default: 600)
 
 ## Usage
 
@@ -130,23 +133,26 @@ This is the initial implementation with core infrastructure in place. The follow
 
 ## API Keys Setup
 
-### Google Gemini AI
+### Google Gemini AI (Required)
 1. Visit [Google AI Studio](https://aistudio.google.com/)
 2. Create an API key
 3. Add to `.env` as `GEMINI_API_KEY`
 
-### YouTube Data API
-1. Visit [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable YouTube Data API v3
-3. Create credentials (API key)
-4. Add to `.env` as `YOUTUBE_API_KEY`
-
-### Google Drive (Optional)
-1. Create a project in Google Cloud Console
+### Google Drive (Optional - for cloud storage)
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com/)
 2. Enable Google Drive API
-3. Create OAuth 2.0 credentials
+3. Create OAuth 2.0 credentials (Desktop application type)
 4. Download credentials JSON file
 5. Set path in `.env` as `GOOGLE_DRIVE_CREDENTIALS_PATH`
+6. Add Client ID and Secret to `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+
+### Gmail Notifications (Optional)
+1. Enable 2-Factor Authentication on your Gmail account
+2. Generate an App Password (not your regular password)
+3. Add your email to `.env` as `GMAIL_USER`
+4. Add the App Password to `.env` as `GMAIL_PASSWORD`
+
+**Note**: YouTube video search and downloading is handled directly by yt-dlp and requires no API keys.
 
 ## License
 

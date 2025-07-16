@@ -36,9 +36,6 @@ def load_config() -> Dict:
         'google_client_id': os.getenv('GOOGLE_CLIENT_ID'),
         'google_client_secret': os.getenv('GOOGLE_CLIENT_SECRET'),
         
-        # YouTube API
-        'youtube_api_key': os.getenv('YOUTUBE_API_KEY'),
-        
         # Processing settings
         'max_concurrent_jobs': int(os.getenv('MAX_CONCURRENT_JOBS', '3')),
         'max_videos_per_phrase': int(os.getenv('MAX_VIDEOS_PER_PHRASE', '3')),
@@ -98,9 +95,7 @@ def validate_config(config: Dict) -> List[str]:
     if gmail_user and not gmail_password:
         errors.append("GMAIL_PASSWORD required when GMAIL_USER is provided")
     
-    # Validate YouTube API key if Google Drive is used
-    if has_drive_input and not config.get('youtube_api_key'):
-        errors.append("YOUTUBE_API_KEY required for video search functionality")
+    # YouTube search is handled by yt-dlp directly, no API key validation needed
     
     return errors
 

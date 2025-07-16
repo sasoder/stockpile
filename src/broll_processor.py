@@ -12,6 +12,13 @@ from .models.video import VideoResult, ScoredVideo
 from .utils.database import init_database, save_job_progress, load_incomplete_jobs
 from .utils.config import load_config, validate_config
 from .utils.retry import retry_api_call, retry_file_operation
+from .services.transcription import TranscriptionService
+from .services.ai_service import AIService
+from .services.youtube_service import YouTubeService
+from .services.video_downloader import VideoDownloader
+from .services.file_organizer import FileOrganizer
+from .services.notification import NotificationService
+from .services.drive_service import DriveService
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +42,36 @@ class BRollProcessor:
             error_msg = "Configuration errors: " + "; ".join(config_errors)
             logger.error(error_msg)
             raise ValueError(error_msg)
+        
+        # Initialize services
+        whisper_model = self.config.get('whisper_model', 'base')
+        self.transcription_service = TranscriptionService(whisper_model)
+        
+        gemini_api_key = self.config.get('gemini_api_key')
+        gemini_model = self.config.get('gemini_model', 'gemini-2.0-flash-001')
+        self.ai_service = AIService(gemini_api_key, gemini_model)
+        
+        max_videos_per_phrase = self.config.get('max_videos_per_phrase', 3)
+        self.youtube_service = YouTubeService(max_results=max_videos_per_phrase * 3)
+        
+        output_dir = self.config.get('local_output_folder', './broll_output')
+        self.video_downloader = VideoDownloader(output_dir)
+        self.file_organizer = FileOrganizer(output_dir)
+        
+        # Initialize notification service if Gmail is configured
+        gmail_user = self.config.get('gmail_user')
+        gmail_password = self.config.get('gmail_password')
+        if gmail_user and gmail_password:
+            self.notification_service = NotificationService(gmail_user, gmail_password)
+        else:
+            self.notification_service = None
+        
+        # Initialize Google Drive service if configured
+        drive_credentials_path = self.config.get('google_drive_credentials_path')
+        if drive_credentials_path:
+            self.drive_service = DriveService(drive_credentials_path)
+        else:
+            self.drive_service = None
         
         logger.info("B-Roll Processor initialized successfully")
     
@@ -219,62 +256,177 @@ class BRollProcessor:
         if self.config.get('google_drive_credentials_path'):
             job.update_status(JobStatus.UPLOADING)
             save_job_progress(job, self.db_path)
-            await self.upload_to_drive(output_path)
+            await self.upload_to_drive(output_path, job.job_id)
         
         # Step 6: Send notification
         await self.send_notification(job.job_id, "completed", "Job completed successfully")
     
-    # Placeholder methods for pipeline steps (to be implemented in subsequent tasks)
     async def transcribe_audio(self, file_path: str) -> str:
         """Transcribe audio content using Whisper."""
-        # TODO: Implement in Task 4
-        logger.info(f"Transcribing audio from {file_path}")
-        await asyncio.sleep(1)  # Simulate processing
-        return "Sample transcript for development"
+        logger.info(f"Starting transcription of: {file_path}")
+        
+        # Check if file format is supported
+        if not self.transcription_service.is_supported_file(file_path):
+            raise ValueError(f"Unsupported file format: {Path(file_path).suffix}")
+        
+        # Run transcription in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        transcript = await loop.run_in_executor(
+            None, 
+            self.transcription_service.transcribe_audio, 
+            file_path
+        )
+        
+        logger.info(f"Transcription completed. Length: {len(transcript)} characters")
+        return transcript
     
     async def extract_search_phrases(self, transcript: str) -> List[str]:
         """Extract relevant search phrases using Gemini AI."""
-        # TODO: Implement in Task 5
         logger.info("Extracting search phrases from transcript")
-        await asyncio.sleep(1)  # Simulate processing
-        return ["sample phrase 1", "sample phrase 2", "sample phrase 3"]
+        
+        if not transcript or not transcript.strip():
+            logger.warning("Empty transcript provided for phrase extraction")
+            return []
+        
+        # Run AI phrase extraction in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        search_phrases = await loop.run_in_executor(
+            None,
+            self.ai_service.extract_search_phrases,
+            transcript
+        )
+        
+        logger.info(f"Extracted {len(search_phrases)} search phrases: {search_phrases}")
+        return search_phrases
     
     async def search_youtube_videos(self, phrase: str) -> List[VideoResult]:
         """Search YouTube for videos matching the phrase."""
-        # TODO: Implement in Task 6
         logger.info(f"Searching YouTube for: {phrase}")
-        await asyncio.sleep(1)  # Simulate processing
-        return []
+        
+        if not phrase or not phrase.strip():
+            logger.warning("Empty search phrase provided")
+            return []
+        
+        # Run YouTube search in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        video_results = await loop.run_in_executor(
+            None,
+            self.youtube_service.search_videos,
+            phrase
+        )
+        
+        logger.info(f"Found {len(video_results)} videos for phrase: {phrase}")
+        return video_results
     
     async def evaluate_videos(self, phrase: str, videos: List[VideoResult]) -> List[ScoredVideo]:
         """Evaluate videos using Gemini AI."""
-        # TODO: Implement in Task 6
-        logger.info(f"Evaluating videos for phrase: {phrase}")
-        await asyncio.sleep(1)  # Simulate processing
-        return []
+        logger.info(f"Evaluating {len(videos)} videos for phrase: {phrase}")
+        
+        if not videos:
+            logger.info(f"No videos to evaluate for phrase: {phrase}")
+            return []
+        
+        # Run AI video evaluation in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        scored_videos = await loop.run_in_executor(
+            None,
+            self.ai_service.evaluate_videos,
+            phrase,
+            videos
+        )
+        
+        # Limit to max videos per phrase
+        max_videos = self.config.get('max_videos_per_phrase', 3)
+        limited_videos = scored_videos[:max_videos]
+        
+        logger.info(f"Selected {len(limited_videos)} top-rated videos for phrase: {phrase}")
+        return limited_videos
     
     async def download_videos(self, videos: List[ScoredVideo], phrase: str) -> List[str]:
         """Download videos using yt-dlp."""
-        # TODO: Implement in Task 7
-        logger.info(f"Downloading videos for phrase: {phrase}")
-        await asyncio.sleep(1)  # Simulate processing
-        return []
+        logger.info(f"Downloading {len(videos)} videos for phrase: {phrase}")
+        
+        if not videos:
+            return []
+        
+        # Run video download in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        downloaded_files = await loop.run_in_executor(
+            None,
+            self.video_downloader.download_videos,
+            videos,
+            phrase
+        )
+        
+        logger.info(f"Downloaded {len(downloaded_files)} files for phrase: {phrase}")
+        return downloaded_files
     
     async def organize_files(self, job_id: str, phrase_downloads: Dict[str, List[str]]) -> str:
         """Organize downloaded files into structured folders."""
-        # TODO: Implement in Task 8
         logger.info(f"Organizing files for job: {job_id}")
-        await asyncio.sleep(1)  # Simulate processing
-        return f"output/{job_id}"
+        
+        if not phrase_downloads:
+            logger.warning(f"No files to organize for job {job_id}")
+            return ""
+        
+        # Run file organization in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        output_path = await loop.run_in_executor(
+            None,
+            self.file_organizer.organize_files,
+            job_id,
+            phrase_downloads
+        )
+        
+        logger.info(f"Files organized into: {output_path}")
+        return output_path
     
-    async def upload_to_drive(self, output_path: str) -> None:
+    async def upload_to_drive(self, output_path: str, job_id: str) -> None:
         """Upload organized content to Google Drive."""
-        # TODO: Implement in Task 8
+        if not self.drive_service:
+            logger.warning("Google Drive service not configured, skipping upload")
+            return
+        
+        if not output_path or not Path(output_path).exists():
+            logger.warning(f"Output path does not exist: {output_path}")
+            return
+        
         logger.info(f"Uploading to Google Drive: {output_path}")
-        await asyncio.sleep(1)  # Simulate processing
+        
+        # Run Google Drive upload in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        drive_folder_id = await loop.run_in_executor(
+            None,
+            self.drive_service.upload_folder,
+            output_path,
+            job_id
+        )
+        
+        logger.info(f"Successfully uploaded to Google Drive (folder ID: {drive_folder_id})")
     
     async def send_notification(self, job_id: str, status: str, message: str) -> None:
         """Send email notification about job completion."""
-        # TODO: Implement in Task 9
+        if not self.notification_service:
+            logger.debug("Email notifications not configured, skipping notification")
+            return
+        
         logger.info(f"Sending notification for job {job_id}: {status} - {message}")
-        await asyncio.sleep(0.1)  # Simulate processing
+        
+        # Get job details for notification
+        job = self.processing_jobs.get(job_id)
+        file_path = job.file_path if job else None
+        
+        # Run email sending in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        try:
+            await loop.run_in_executor(
+                None,
+                self.notification_service.send_notification,
+                job_id,
+                status,
+                message,
+                file_path
+            )
+            logger.info(f"Email notification sent for job {job_id}")
+        except Exception as e:
+            logger.error(f"Failed to send email notification for job {job_id}: {e}")
