@@ -1,0 +1,33 @@
+# Core dependencies
+openai-whisper>=20240930
+google-genai>=0.8.0
+yt-dlp>=2024.12.13
+
+# Media processing
+ffmpeg-python>=0.2.0
+
+# Google Cloud integration
+google-api-python-client>=2.149.0
+google-auth>=2.35.0
+google-auth-oauthlib>=1.2.1
+google-auth-httplib2>=0.2.0
+
+# File monitoring
+watchdog>=4.0.0
+
+# Database
+sqlite3  # Built-in
+
+# Async support
+aiofiles>=23.2.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+requests>=2.31.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+mypy>=1.7.0
