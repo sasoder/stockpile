@@ -74,7 +74,6 @@ Edit your `.env` file with these settings:
 - `GMAIL_USER=` / `GMAIL_PASSWORD=` - For email notifications (use App Password)
 - `WHISPER_MODEL=base` - Whisper model size (tiny/base/small/medium/large)
 - `GEMINI_MODEL=gemma-3-27b-it` - AI model for phrase extraction
-- `MAX_CONCURRENT_JOBS=3` - How many videos to process simultaneously
 - `MAX_VIDEOS_PER_PHRASE=3` - B-roll videos to download per search phrase
 
 ## Usage

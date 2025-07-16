@@ -17,8 +17,12 @@ from utils.retry import retry_api_call, NetworkError
 
 logger = logging.getLogger(__name__)
 
-# Gmail API scope for sending emails
-SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+# API scopes for Gmail and Drive access
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/drive"
+]
 
 
 class NotificationService:
@@ -54,20 +58,33 @@ class NotificationService:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                # Create client config from environment variables
-                client_config = {
+                # Create temporary credentials.json file
+                credentials_config = {
                     "installed": {
                         "client_id": self.client_id,
                         "client_secret": self.client_secret,
                         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                         "token_uri": "https://oauth2.googleapis.com/token",
                         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                        "redirect_uris": ["http://localhost"]
+                        "redirect_uris": ["http://localhost:8080/"]
                     }
                 }
                 
-                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
-                creds = flow.run_local_server(port=0)
+                # Write temporary credentials file
+                import json
+                temp_creds_file = "temp_credentials.json"
+                with open(temp_creds_file, 'w') as f:
+                    json.dump(credentials_config, f)
+                
+                try:
+                    flow = InstalledAppFlow.from_client_secrets_file(temp_creds_file, SCOPES)
+                    # Ensure we get a refresh token
+                    flow.run_local_server(port=8080, prompt='consent')
+                    creds = flow.credentials
+                finally:
+                    # Clean up temp file
+                    if os.path.exists(temp_creds_file):
+                        os.remove(temp_creds_file)
             
             # Save the credentials for the next run
             with open("token.json", "w") as token:

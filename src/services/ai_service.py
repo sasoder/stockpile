@@ -43,31 +43,39 @@ class AIService:
             return []
         
         # B-Roll Extractor v6 prompt (from original n8n workflow)
-        prompt = f"""
-You are B-Roll Extractor v6. Your goal is to extract relevant search phrases for finding B-roll footage.
+        prompt = f"""You are B-RollExtractor v6.
 
-Analyze this transcript and extract 5-10 specific, visual search phrases that would help find relevant B-roll footage:
+GOAL
+Turn the transcript into stock-footage search phrases an editor can paste into Pexels, YouTube, etc.
 
-TRANSCRIPT:
+OUTPUT
+Return one JSON string array and nothing else.
+
+Example: ["Berlin Wall falling", "vintage CRT monitor close-up", "Hitler with Stalin", "Mao era parade"]
+
+RULES
+• ≥10 phrases.
+• 2–6 words each.
+• Must name a tangible scene, person, object or event (no pure ideas).
+• Use simple connectors ("with", "in", "during") to relate entities.
+• No duplicates or name-spamming combos ("Hitler Stalin Mao").
+• No markdown, no extra keys, no surrounding text.
+
+GOOD
+"1930s Kremlin meeting"
+"Stalin official portrait"
+"Hitler with Stalin"
+
+BAD
+"policy shift"         (abstract)
+"Power dynamics"        (abstract)
+"Hitler Stalin Mao"     (unclear)
+"massive power"         (no concrete noun)
+
+TRANSCRIPT ↓
+<<<
 {transcript}
-
-REQUIREMENTS:
-1. Focus on visual, concrete concepts that can be filmed
-2. Avoid abstract ideas, emotions, or concepts that can't be visualized
-3. Prioritize nouns and noun phrases that represent physical objects, places, or activities
-4. Keep phrases 1-4 words long for effective search
-5. Remove duplicates and very similar phrases
-6. Choose phrases that would yield generic, high-quality stock footage
-7. Avoid brand names, specific people, or copyrighted content
-
-EXAMPLES OF GOOD PHRASES:
-- "city skyline", "coffee shop", "morning commute"
-- "ocean waves", "mountain landscape", "busy street"
-- "typing keyboard", "handshake", "sunset"
-
-Return only a JSON array of strings, nothing else.
-Format: ["phrase1", "phrase2", "phrase3"]
-"""
+>>>"""
         
         try:
             logger.info("Extracting search phrases from transcript")
@@ -76,14 +84,25 @@ Format: ["phrase1", "phrase2", "phrase3"]
                 model=self.model_name,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0.3,
-                    max_output_tokens=300,
-                    response_mime_type='application/json'
+                    temperature=0.85,
                 )
             )
             
             # Parse JSON response
-            phrases = json.loads(response.text)
+            try:
+                phrases = json.loads(response.text)
+            except json.JSONDecodeError:
+                # If JSON parsing fails, try to extract phrases from text
+                logger.warning("Failed to parse JSON response, attempting to extract phrases from text")
+                logger.info(f"Raw AI response: {response.text}")
+                import re
+                # Look for quoted phrases or lines that look like phrases
+                text = response.text
+                phrases = re.findall(r'"([^"]+)"', text)
+                if not phrases:
+                    # Fallback: split by lines and filter
+                    lines = text.strip().split('\n')
+                    phrases = [line.strip(' -•*') for line in lines if line.strip() and len(line.strip()) < 50]
             
             # Validate and clean phrases
             if not isinstance(phrases, list):
@@ -139,50 +158,34 @@ Format: ["phrase1", "phrase2", "phrase3"]
             f"Title: {video.title}\n"
             f"Description: {video.description[:200] if video.description else 'N/A'}...\n"
             f"Duration: {video.duration}s\n"
-            f"Channel: {video.channel_title or 'Unknown'}\n"
+            f"URL: {video.url}\n"
             "---"
             for video in video_results
         ])
         
-        evaluator_prompt = f"""
-You are B-Roll Evaluator. Your goal is to select the most visually relevant YouTube videos for a given search phrase.
+        evaluator_prompt = f"""You are B-Roll Evaluator. Your goal is to select the most visually relevant YouTube videos for a given search phrase.
 
 You will be given a search phrase and a list of YouTube search results including their titles and descriptions.
 
-SEARCH PHRASE: "{search_phrase}"
+SEARCH PHRASE:
+"{search_phrase}"
 
 YOUTUBE RESULTS:
+---
 {results_text}
+---
 
 TASK:
-1. Analyze the title and description of each video
-2. Compare them against the search phrase for relevance
-3. Choose videos that are most likely to contain generic, high-quality B-roll footage matching the phrase
-4. Prioritize:
-   - Cinematic shots and professional footage
-   - Stock footage and documentary clips
-   - Generic, reusable content
-5. Avoid:
-   - Vlogs and talking head videos
-   - Talk shows and interviews
-   - Tutorials and how-to videos
-   - Videos with prominent branding or logos
-   - Music videos or entertainment content
-6. Rate each video from 1-10 based on B-roll potential
-
-SCORING CRITERIA:
-- 9-10: Perfect B-roll footage, cinematic quality
-- 7-8: Good B-roll potential, professional quality
-- 6: Acceptable B-roll, some usable footage
-- 1-5: Poor B-roll potential (exclude from results)
+1. Analyze the title and description of each video.
+2. Compare them against the search phrase.
+3. Choose the videos that are most likely to contain generic, high-quality B-roll footage matching the phrase.
+4. Prioritize cinematic shots, stock footage, documentary clips. Avoid vlogs, talk shows, tutorials, or videos with prominent branding.
+5. Rate each video from 1-10 based on B-roll potential.
 
 OUTPUT:
 Return a JSON array of objects with video_id and score for videos scoring 6 or higher, ordered by score (highest first).
-
 Format: [{{"video_id": "abc123", "score": 9}}, {{"video_id": "def456", "score": 7}}]
-
-Return only the JSON array, nothing else.
-"""
+Return only the JSON array, nothing else."""
         
         try:
             logger.info(f"Evaluating {len(video_results)} videos for phrase: {search_phrase}")
@@ -192,13 +195,22 @@ Return only the JSON array, nothing else.
                 contents=evaluator_prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.1,  # Low temperature for consistent evaluation
-                    max_output_tokens=500,
-                    response_mime_type='application/json'
                 )
             )
             
             # Parse JSON response
-            scored_results = json.loads(response.text)
+            try:
+                scored_results = json.loads(response.text)
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse video evaluation response as JSON: {response.text}")
+                logger.warning("Attempting to extract video IDs and scores from text response")
+                import re
+                # Try to extract video_id and score pairs from text
+                matches = re.findall(r'"video_id":\s*"([^"]+)".*?"score":\s*(\d+)', response.text)
+                scored_results = [{"video_id": vid_id, "score": int(score)} for vid_id, score in matches if int(score) >= 6]
+                if not scored_results:
+                    logger.error("Could not extract any valid video evaluations from response")
+                    return []
             
             # Validate response format
             if not isinstance(scored_results, list):

@@ -17,11 +17,11 @@ def load_config() -> Dict:
         'gemini_api_key': os.getenv('GEMINI_API_KEY'),
         
         # Input sources (at least one required)
-        'local_input_folder': os.getenv('LOCAL_INPUT_FOLDER'),
+        'local_input_folder': os.getenv('LOCAL_INPUT_FOLDER', '../input'),
         'google_drive_input_folder_id': os.getenv('GOOGLE_DRIVE_INPUT_FOLDER_ID'),
         
         # Output destinations (at least one required)
-        'local_output_folder': os.getenv('LOCAL_OUTPUT_FOLDER'),
+        'local_output_folder': os.getenv('LOCAL_OUTPUT_FOLDER', '../output'),
         'google_drive_output_folder_id': os.getenv('GOOGLE_DRIVE_OUTPUT_FOLDER_ID'),
         
         
@@ -34,9 +34,7 @@ def load_config() -> Dict:
         'google_client_secret': os.getenv('GOOGLE_CLIENT_SECRET'),
         
         # Processing settings
-        'max_concurrent_jobs': int(os.getenv('MAX_CONCURRENT_JOBS', '3')),
         'max_videos_per_phrase': int(os.getenv('MAX_VIDEOS_PER_PHRASE', '3')),
-        'video_duration_limit': int(os.getenv('VIDEO_DURATION_LIMIT', '600')),  # 10 minutes
         
         # Database
         'database_path': os.getenv('DATABASE_PATH', 'broll_jobs.db'),

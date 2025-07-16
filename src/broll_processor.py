@@ -54,7 +54,7 @@ class BRollProcessor:
         max_videos_per_phrase = self.config.get('max_videos_per_phrase', 3)
         self.youtube_service = YouTubeService(max_results=max_videos_per_phrase * 3)
         
-        output_dir = self.config.get('local_output_folder', './broll_output')
+        output_dir = self.config.get('local_output_folder', '../output')
         self.video_downloader = VideoDownloader(output_dir)
         self.file_organizer = FileOrganizer(output_dir)
         
@@ -152,7 +152,7 @@ class BRollProcessor:
         try:
             # Move job to processing
             self.job_queue.remove(job)
-            self.processing_jobs[job_id] = job
+            self.processing_jobs[job.job_id] = job
             
             # Execute processing pipeline
             await self._execute_pipeline(job)
@@ -161,21 +161,21 @@ class BRollProcessor:
             job.update_status(JobStatus.COMPLETED)
             save_job_progress(job, self.db_path)
             
-            logger.info(f"Job {job_id} completed successfully")
+            logger.info(f"Job {job.job_id} completed successfully")
             
         except Exception as e:
             # Mark as failed
             job.update_status(JobStatus.FAILED, str(e))
             save_job_progress(job, self.db_path)
             
-            logger.error(f"Job {job_id} failed: {e}")
+            logger.error(f"Job {job.job_id} failed: {e}")
             raise
         
         finally:
             # Remove from processing
-            self.processing_jobs.pop(job_id, None)
+            self.processing_jobs.pop(job.job_id, None)
         
-        return job_id
+        return job.job_id
     
     async def _execute_pipeline(self, job: ProcessingJob) -> None:
         """Execute the complete processing pipeline for a job."""
@@ -187,6 +187,7 @@ class BRollProcessor:
         transcript = await self.transcribe_audio(job.file_path)
         job.transcript = transcript
         save_job_progress(job, self.db_path)
+        logger.info(f"TRANSCRIPT: {transcript}")
         
         # Step 2: Extract search phrases
         job.update_status(JobStatus.EXTRACTING_PHRASES)

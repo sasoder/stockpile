@@ -9,7 +9,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
+from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import os
 
@@ -18,7 +18,11 @@ from utils.retry import retry_api_call, NetworkError
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/drive"
+]
 
 
 class VideoFileHandler(FileSystemEventHandler):
@@ -96,19 +100,33 @@ class FileMonitor:
                 if creds and creds.expired and creds.refresh_token:
                     creds.refresh(Request())
                 else:
-                    flow = Flow.from_client_config(
-                        {
-                            "web": {
-                                "client_id": client_id,
-                                "client_secret": client_secret,
-                                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                                "token_uri": "https://oauth2.googleapis.com/token"
-                            }
-                        },
-                        SCOPES
-                    )
-                    flow.redirect_uri = 'http://localhost:8080/callback'
-                    creds = flow.run_local_server(port=8080)
+                    # Create temporary credentials.json file
+                    credentials_config = {
+                        "installed": {
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                            "redirect_uris": ["http://localhost:8080/"]
+                        }
+                    }
+                    
+                    # Write temporary credentials file
+                    import json
+                    temp_creds_file = "temp_credentials.json"
+                    with open(temp_creds_file, 'w') as f:
+                        json.dump(credentials_config, f)
+                    
+                    try:
+                        flow = InstalledAppFlow.from_client_secrets_file(temp_creds_file, SCOPES)
+                        # Ensure we get a refresh token
+                        flow.run_local_server(port=8080, prompt='consent')
+                        creds = flow.credentials
+                    finally:
+                        # Clean up temp file
+                        if os.path.exists(temp_creds_file):
+                            os.remove(temp_creds_file)
                 
                 # Save credentials for next run
                 with open(token_path, 'w') as token:
@@ -271,12 +289,7 @@ class FileMonitor:
             request = self.drive_service.files().get_media(fileId=file_info['id'])
             
             with open(temp_path, 'wb') as f:
-                downloader = request
-                done = False
-                while done is False:
-                    status, done = downloader.next_chunk()
-                    if status:
-                        logger.debug(f"Download progress: {int(status.progress() * 100)}%")
+                f.write(request.execute())
             
             logger.info(f"Downloaded Google Drive file to: {temp_path}")
             return str(temp_path)

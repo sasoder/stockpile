@@ -93,6 +93,5 @@ SQLite database tracks job state with these key fields:
 
 ## Development Notes
 - All services use `@retry_api_call` decorator for network resilience
-- Async processing with configurable concurrency (`MAX_CONCURRENT_JOBS`)
 - Temporary files auto-cleaned after processing
 - Job state persists across application restarts
