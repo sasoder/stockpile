@@ -18,11 +18,11 @@ def load_config() -> Dict:
         
         # Input sources (at least one required)
         'local_input_folder': os.getenv('LOCAL_INPUT_FOLDER'),
-        'google_drive_folder_id': os.getenv('GOOGLE_DRIVE_FOLDER_ID'),
+        'google_drive_input_folder_id': os.getenv('GOOGLE_DRIVE_INPUT_FOLDER_ID'),
         
         # Output destinations (at least one required)
         'local_output_folder': os.getenv('LOCAL_OUTPUT_FOLDER'),
-        'google_drive_credentials_path': os.getenv('GOOGLE_DRIVE_CREDENTIALS_PATH'),
+        'google_drive_output_folder_id': os.getenv('GOOGLE_DRIVE_OUTPUT_FOLDER_ID'),
         
         # Email notifications
         'gmail_user': os.getenv('GMAIL_USER'),
@@ -30,7 +30,7 @@ def load_config() -> Dict:
         
         # Model configurations
         'whisper_model': os.getenv('WHISPER_MODEL', 'base'),
-        'gemini_model': os.getenv('GEMINI_MODEL', 'gemini-2.0-flash-001'),
+        'gemini_model': os.getenv('GEMINI_MODEL', 'gemma-3-27b-it'),
         
         # Google Drive OAuth
         'google_client_id': os.getenv('GOOGLE_CLIENT_ID'),
@@ -58,17 +58,17 @@ def validate_config(config: Dict) -> List[str]:
     
     # Check input sources (at least one required)
     has_local_input = bool(config.get('local_input_folder'))
-    has_drive_input = bool(config.get('google_drive_folder_id'))
+    has_drive_input = bool(config.get('google_drive_input_folder_id'))
     
     if not (has_local_input or has_drive_input):
-        errors.append("At least one input source required: LOCAL_INPUT_FOLDER or GOOGLE_DRIVE_FOLDER_ID")
+        errors.append("At least one input source required: LOCAL_INPUT_FOLDER or GOOGLE_DRIVE_INPUT_FOLDER_ID")
     
     # Check output destinations (at least one required)
     has_local_output = bool(config.get('local_output_folder'))
-    has_drive_output = bool(config.get('google_drive_credentials_path'))
+    has_drive_output = bool(config.get('google_drive_output_folder_id'))
     
     if not (has_local_output or has_drive_output):
-        errors.append("At least one output destination required: LOCAL_OUTPUT_FOLDER or GOOGLE_DRIVE_CREDENTIALS_PATH")
+        errors.append("At least one output destination required: LOCAL_OUTPUT_FOLDER or GOOGLE_DRIVE_OUTPUT_FOLDER_ID")
     
     # Validate local paths exist
     if has_local_input:
@@ -83,11 +83,10 @@ def validate_config(config: Dict) -> List[str]:
         except Exception as e:
             errors.append(f"Cannot create local output folder: {e}")
     
-    # Validate Google Drive credentials
-    if has_drive_output:
-        creds_path = Path(config['google_drive_credentials_path'])
-        if not creds_path.exists():
-            errors.append(f"Google Drive credentials file not found: {creds_path}")
+    # Validate Google Drive credentials if using Google Drive
+    if has_drive_output or has_drive_input:
+        if not config.get('google_client_id') or not config.get('google_client_secret'):
+            errors.append("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET required for Google Drive integration")
     
     # Validate Gmail configuration if provided
     gmail_user = config.get('gmail_user')

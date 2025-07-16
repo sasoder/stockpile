@@ -19,6 +19,7 @@ from .services.video_downloader import VideoDownloader
 from .services.file_organizer import FileOrganizer
 from .services.notification import NotificationService
 from .services.drive_service import DriveService
+from .services.file_monitor import FileMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +68,16 @@ class BRollProcessor:
             self.notification_service = None
         
         # Initialize Google Drive service if configured
-        drive_credentials_path = self.config.get('google_drive_credentials_path')
-        if drive_credentials_path:
-            self.drive_service = DriveService(drive_credentials_path)
+        if self.config.get('google_drive_output_folder_id'):
+            client_id = self.config.get('google_client_id')
+            client_secret = self.config.get('google_client_secret')
+            output_folder_id = self.config.get('google_drive_output_folder_id')
+            self.drive_service = DriveService(client_id, client_secret, output_folder_id)
         else:
             self.drive_service = None
+        
+        # Initialize file monitor
+        self.file_monitor = FileMonitor(self.config, self._handle_new_file)
         
         logger.info("B-Roll Processor initialized successfully")
     
@@ -82,7 +88,20 @@ class BRollProcessor:
         # Resume incomplete jobs
         self.resume_incomplete_jobs()
         
+        # Start file monitoring
+        self.file_monitor.start_monitoring()
+        
         logger.info(f"Processor started with {len(self.job_queue)} jobs in queue")
+    
+    def _handle_new_file(self, file_path: str, source: str) -> None:
+        """Handle new file detected by file monitor."""
+        logger.info(f"New file detected from {source}: {file_path}")
+        
+        # Create and queue new job
+        job_id = self.create_job(file_path, source)
+        
+        # Start processing the job asynchronously
+        asyncio.create_task(self.process_video(file_path, source))
     
     def create_job(self, file_path: str, source: str) -> str:
         """Create a new processing job and add to queue."""
@@ -253,10 +272,14 @@ class BRollProcessor:
         save_job_progress(job, self.db_path)
         
         # Step 5: Upload to Google Drive if configured
-        if self.config.get('google_drive_credentials_path'):
+        if self.drive_service:
             job.update_status(JobStatus.UPLOADING)
             save_job_progress(job, self.db_path)
-            await self.upload_to_drive(output_path, job.job_id)
+            drive_folder_url = await self.upload_to_drive(output_path, job.job_id)
+            # Store the Drive URL for notifications (only if upload succeeded)
+            if drive_folder_url:
+                job.drive_folder_url = drive_folder_url
+                save_job_progress(job, self.db_path)
         
         # Step 6: Send notification
         await self.send_notification(job.job_id, "completed", "Job completed successfully")
@@ -381,28 +404,29 @@ class BRollProcessor:
         logger.info(f"Files organized into: {output_path}")
         return output_path
     
-    async def upload_to_drive(self, output_path: str, job_id: str) -> None:
+    async def upload_to_drive(self, output_path: str, job_id: str) -> str:
         """Upload organized content to Google Drive."""
         if not self.drive_service:
             logger.warning("Google Drive service not configured, skipping upload")
-            return
+            return ""
         
         if not output_path or not Path(output_path).exists():
             logger.warning(f"Output path does not exist: {output_path}")
-            return
+            return ""
         
         logger.info(f"Uploading to Google Drive: {output_path}")
         
         # Run Google Drive upload in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
-        drive_folder_id = await loop.run_in_executor(
+        drive_folder_url = await loop.run_in_executor(
             None,
             self.drive_service.upload_folder,
             output_path,
             job_id
         )
         
-        logger.info(f"Successfully uploaded to Google Drive (folder ID: {drive_folder_id})")
+        logger.info(f"Successfully uploaded to Google Drive: {drive_folder_url}")
+        return drive_folder_url
     
     async def send_notification(self, job_id: str, status: str, message: str) -> None:
         """Send email notification about job completion."""
@@ -414,7 +438,26 @@ class BRollProcessor:
         
         # Get job details for notification
         job = self.processing_jobs.get(job_id)
-        file_path = job.file_path if job else None
+        if not job:
+            # Try to load from database if not in processing jobs
+            from .utils.database import load_job
+            job = load_job(job_id, self.db_path)
+        
+        # Prepare notification details
+        output_path = job.output_path if job else None
+        drive_folder_url = job.drive_folder_url if job else None
+        
+        # Create job details for email
+        job_details = {}
+        if job:
+            if job.transcript:
+                job_details['transcript_length'] = len(job.transcript)
+            if job.search_phrases:
+                job_details['search_phrases'] = job.search_phrases
+                job_details['phrases_processed'] = len(job.search_phrases)
+            if job.downloaded_files:
+                total_downloads = sum(len(files) for files in job.downloaded_files.values())
+                job_details['total_downloads'] = total_downloads
         
         # Run email sending in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
@@ -425,7 +468,9 @@ class BRollProcessor:
                 job_id,
                 status,
                 message,
-                file_path
+                output_path,
+                drive_folder_url,
+                job_details
             )
             logger.info(f"Email notification sent for job {job_id}")
         except Exception as e:

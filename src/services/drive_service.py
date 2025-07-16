@@ -8,7 +8,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import Flow
 
 from ..utils.retry import retry_api_call, NetworkError, TemporaryServiceError
 
@@ -20,14 +20,16 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 class DriveService:
     """Service for uploading files to Google Drive."""
     
-    def __init__(self, credentials_path: str, output_folder_id: Optional[str] = None):
+    def __init__(self, client_id: str, client_secret: str, output_folder_id: str):
         """Initialize Google Drive service.
         
         Args:
-            credentials_path: Path to Google Drive credentials JSON file
-            output_folder_id: Optional folder ID to upload to (creates new folder if None)
+            client_id: Google OAuth client ID
+            client_secret: Google OAuth client secret  
+            output_folder_id: Google Drive folder ID to upload to
         """
-        self.credentials_path = credentials_path
+        self.client_id = client_id
+        self.client_secret = client_secret
         self.output_folder_id = output_folder_id
         self.service = None
         self._authenticate()
@@ -46,9 +48,20 @@ class DriveService:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self.credentials_path, SCOPES)
-                creds = flow.run_local_server(port=0)
+                # Create flow from client config
+                flow = Flow.from_client_config(
+                    {
+                        "web": {
+                            "client_id": self.client_id,
+                            "client_secret": self.client_secret,
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token"
+                        }
+                    },
+                    SCOPES
+                )
+                flow.redirect_uri = 'http://localhost:8080/callback'
+                creds = flow.run_local_server(port=8080)
             
             # Save credentials for next run
             with open(token_path, 'w') as token:
@@ -66,7 +79,7 @@ class DriveService:
             job_id: Job identifier for folder naming
             
         Returns:
-            Google Drive folder ID of uploaded content
+            URL to the Google Drive folder
         """
         local_path = Path(local_folder_path)
         if not local_path.exists():
@@ -82,8 +95,10 @@ class DriveService:
             # Upload all files and subfolders
             self._upload_directory_contents(local_path, project_folder_id)
             
+            # Return shareable URL
+            folder_url = f"https://drive.google.com/drive/folders/{project_folder_id}"
             logger.info(f"Successfully uploaded folder to Google Drive: {folder_name}")
-            return project_folder_id
+            return folder_url
             
         except Exception as e:
             logger.error(f"Failed to upload folder to Google Drive: {e}")
@@ -93,23 +108,21 @@ class DriveService:
                 raise NetworkError(f"Network error: {e}")
             raise
     
-    def _create_folder(self, folder_name: str, parent_folder_id: Optional[str] = None) -> str:
+    def _create_folder(self, folder_name: str, parent_folder_id: str) -> str:
         """Create a folder in Google Drive.
         
         Args:
             folder_name: Name of folder to create
-            parent_folder_id: Parent folder ID (None for root)
+            parent_folder_id: Parent folder ID
             
         Returns:
             Created folder ID
         """
         folder_metadata = {
             'name': folder_name,
-            'mimeType': 'application/vnd.google-apps.folder'
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [parent_folder_id]
         }
-        
-        if parent_folder_id:
-            folder_metadata['parents'] = [parent_folder_id]
         
         folder = self.service.files().create(body=folder_metadata, fields='id').execute()
         folder_id = folder.get('id')

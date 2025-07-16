@@ -32,7 +32,8 @@ def init_database(db_path: str) -> None:
                 search_phrases TEXT,
                 downloaded_files TEXT,
                 output_path TEXT,
-                error_message TEXT
+                error_message TEXT,
+                drive_folder_url TEXT
             )
         ''')
         
@@ -66,8 +67,8 @@ def save_job_progress(job: ProcessingJob, db_path: str) -> None:
         cursor.execute('''
             INSERT OR REPLACE INTO jobs (
                 job_id, file_path, source, status, created_at, updated_at,
-                transcript, search_phrases, downloaded_files, output_path, error_message
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                transcript, search_phrases, downloaded_files, output_path, error_message, drive_folder_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             job_data['job_id'],
             job_data['file_path'],
@@ -79,7 +80,8 @@ def save_job_progress(job: ProcessingJob, db_path: str) -> None:
             job_data['search_phrases'],
             job_data['downloaded_files'],
             job_data['output_path'],
-            job_data['error_message']
+            job_data['error_message'],
+            job_data['drive_folder_url']
         ))
         
         conn.commit()

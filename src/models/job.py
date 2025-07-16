@@ -35,6 +35,7 @@ class ProcessingJob:
     downloaded_files: Optional[Dict[str, List[str]]] = None
     output_path: Optional[str] = None
     error_message: Optional[str] = None
+    drive_folder_url: Optional[str] = None
     
     def to_dict(self) -> dict:
         """Convert job to dictionary for database storage."""
@@ -49,7 +50,8 @@ class ProcessingJob:
             'search_phrases': json.dumps(self.search_phrases) if self.search_phrases else None,
             'downloaded_files': json.dumps(self.downloaded_files) if self.downloaded_files else None,
             'output_path': self.output_path,
-            'error_message': self.error_message
+            'error_message': self.error_message,
+            'drive_folder_url': self.drive_folder_url
         }
     
     @classmethod
@@ -66,7 +68,8 @@ class ProcessingJob:
             search_phrases=json.loads(data['search_phrases']) if data.get('search_phrases') else None,
             downloaded_files=json.loads(data['downloaded_files']) if data.get('downloaded_files') else None,
             output_path=data.get('output_path'),
-            error_message=data.get('error_message')
+            error_message=data.get('error_message'),
+            drive_folder_url=data.get('drive_folder_url')
         )
     
     def update_status(self, new_status: JobStatus, error_message: Optional[str] = None) -> None:

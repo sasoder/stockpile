@@ -1,4 +1,4 @@
-# B-Roll Video Processor
+# Stockpile
 
 An automated Python application that helps video content creators find and organize relevant B-roll footage. The system processes uploaded videos by transcribing audio content, extracting contextual search phrases using AI, finding matching B-roll videos from YouTube, and organizing them into structured project folders.
 
@@ -16,24 +16,27 @@ An automated Python application that helps video content creators find and organ
 ## Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone git@github.com:sasoder/stockpile.git
    cd broll-video-processor
    ```
 
 2. **Install Python dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Install system dependencies**
+
    ```bash
    # macOS
    brew install ffmpeg
-   
+
    # Ubuntu/Debian
    sudo apt update && sudo apt install ffmpeg
-   
+
    # Windows (using Chocolatey)
    choco install ffmpeg
    ```
@@ -51,7 +54,7 @@ An automated Python application that helps video content creators find and organ
 - `GEMINI_API_KEY` - Google Gemini AI API key for phrase extraction
 - At least one input source:
   - `LOCAL_INPUT_FOLDER` - Local directory to monitor for videos
-  - `GOOGLE_DRIVE_FOLDER_ID` - Google Drive folder ID to monitor
+  - `GOOGLE_DRIVE_INPUT_FOLDER_ID` - Google Drive folder ID to monitor
 - At least one output destination:
   - `LOCAL_OUTPUT_FOLDER` - Local directory for organized B-roll
   - `GOOGLE_DRIVE_CREDENTIALS_PATH` - Path to Google Drive credentials JSON
@@ -117,12 +120,14 @@ src/
 This is the initial implementation with core infrastructure in place. The following components are implemented:
 
 ✅ **Core Infrastructure**
+
 - Project structure and configuration
 - Database schema and job management
 - Main processor class with pipeline orchestration
 - Command-line interface and application entry point
 
 🚧 **In Progress**
+
 - Audio transcription service (Whisper integration)
 - AI phrase extraction service (Gemini integration)
 - YouTube search and video evaluation
@@ -134,11 +139,13 @@ This is the initial implementation with core infrastructure in place. The follow
 ## API Keys Setup
 
 ### Google Gemini AI (Required)
+
 1. Visit [Google AI Studio](https://aistudio.google.com/)
 2. Create an API key
 3. Add to `.env` as `GEMINI_API_KEY`
 
 ### Google Drive (Optional - for cloud storage)
+
 1. Create a project in [Google Cloud Console](https://console.cloud.google.com/)
 2. Enable Google Drive API
 3. Create OAuth 2.0 credentials (Desktop application type)
@@ -147,6 +154,7 @@ This is the initial implementation with core infrastructure in place. The follow
 6. Add Client ID and Secret to `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
 
 ### Gmail Notifications (Optional)
+
 1. Enable 2-Factor Authentication on your Gmail account
 2. Generate an App Password (not your regular password)
 3. Add your email to `.env` as `GMAIL_USER`
