@@ -444,6 +444,7 @@ class BRollProcessor:
         # Prepare notification details
         output_path = job.output_path if job else None
         drive_folder_url = job.drive_folder_url if job else None
+        input_file = job.file_path if job else None
         
         # Calculate processing time
         processing_time = None
@@ -462,7 +463,8 @@ class BRollProcessor:
                 message,
                 output_path,
                 drive_folder_url,
-                processing_time
+                processing_time,
+                input_file
             )
             logger.info(f"Email notification sent for job {job_id}")
         except Exception as e:

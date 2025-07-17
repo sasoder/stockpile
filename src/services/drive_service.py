@@ -105,8 +105,7 @@ class DriveService:
         logger.info(f"Uploading folder to Google Drive: {local_folder_path}")
         
         try:
-            # Create project folder in Drive
-            folder_name = f"broll_project_{job_id[:8]}"
+            folder_name = local_path.name
             project_folder_id = self._create_folder(folder_name, self.output_folder_id)
             
             # Upload all files and subfolders

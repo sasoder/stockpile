@@ -106,7 +106,8 @@ class NotificationService:
     def send_notification(self, job_id: str, status: str, message: str, 
                          output_path: Optional[str] = None, 
                          drive_folder_url: Optional[str] = None,
-                         processing_time: Optional[str] = None) -> None:
+                         processing_time: Optional[str] = None,
+                         input_file: Optional[str] = None) -> None:
         """Send email notification about job completion.
         
         Args:
@@ -116,11 +117,12 @@ class NotificationService:
             output_path: Local output path (if applicable)
             drive_folder_url: Google Drive folder URL (if applicable)
             processing_time: Human-readable processing time (if applicable)
+            input_file: Original input file that triggered the workflow (if applicable)
         """
         try:
             # Create email content
             subject = self._create_subject(job_id, status)
-            body = self._create_email_body(job_id, status, message, output_path, drive_folder_url, processing_time)
+            body = self._create_email_body(job_id, status, message, output_path, drive_folder_url, processing_time, input_file)
             
             # Send email
             self._send_email(subject, body)
@@ -142,7 +144,8 @@ class NotificationService:
     def _create_email_body(self, job_id: str, status: str, message: str,
                           output_path: Optional[str] = None,
                           drive_folder_url: Optional[str] = None,
-                          processing_time: Optional[str] = None) -> str:
+                          processing_time: Optional[str] = None,
+                          input_file: Optional[str] = None) -> str:
         """Create email body content."""
         # Create simple text email body
         output_info = ""
@@ -154,11 +157,18 @@ class NotificationService:
         # Add processing time if available
         time_info = f"\nProcessing Time: {processing_time}" if processing_time else ""
         
+        # Add input file information if available
+        input_info = ""
+        if input_file:
+            from pathlib import Path
+            input_filename = Path(input_file).name
+            input_info = f"\nInput File: {input_filename}"
+        
         body = f"""Stockpile Processing {status.title()}
 
 Job ID: {job_id}
 Status: {status.title()}
-Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{time_info}
+Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{input_info}{time_info}
 Message: {message}{output_info}
 """
         
