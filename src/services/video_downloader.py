@@ -26,11 +26,15 @@ def video_filter(info: Dict, incomplete: bool = False) -> Optional[str]:
     """
     config = load_config()
     max_duration = config.get('max_video_duration_seconds', 600)
-    
+    max_size = config.get('max_video_size_bytes', 100 * 1024 * 1024)
     # Check duration
     duration = info.get('duration')
     if duration is not None and duration > max_duration:
         return f"Duration {duration}s exceeds maximum {max_duration}s"
+
+    size = info.get('filesize')
+    if size is not None and size > max_size:
+        return f"Size {size} exceeds maximum {max_size} bytes"
     
     return None
 
