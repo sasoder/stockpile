@@ -60,7 +60,6 @@ class BRollApp:
         
         try:
             processor = BRollProcessor()
-            processor.display_queue_status()
             
             # Show database statistics
             stats = get_job_statistics(processor.db_path)

@@ -43,7 +43,7 @@ class VideoFileHandler(FileSystemEventHandler):
         if event.is_directory:
             return
         
-        file_path = Path(event.src_path)
+        file_path = Path(str(event.src_path))
         if self._is_supported_file(file_path) and str(file_path) not in self.processed_files:
             # Wait a bit to ensure file is fully written
             time.sleep(2)
@@ -216,7 +216,7 @@ class FileMonitor:
             results = self.drive_service.files().list(
                 q=f"'{folder_id}' in parents and trashed=false",
                 fields="files(id, name, mimeType, modifiedTime)"
-            ).execute()
+            ).execute() if self.drive_service else {'files': []}
             
             files = results.get('files', [])
             self.known_drive_files = {file['id'] for file in files if self._is_video_file(file)}
@@ -235,7 +235,7 @@ class FileMonitor:
                 q=f"'{folder_id}' in parents and trashed=false",
                 fields="files(id, name, mimeType, modifiedTime)",
                 orderBy="modifiedTime desc"
-            ).execute()
+            ).execute() if self.drive_service else {'files': []}
             
             files = results.get('files', [])
             

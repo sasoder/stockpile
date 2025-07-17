@@ -5,7 +5,6 @@ import logging
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
 import whisper
 
 from utils.retry import retry_api_call, retry_file_operation
@@ -44,7 +43,7 @@ class TranscriptionService:
             raise
     
     @retry_api_call(max_retries=3, base_delay=2.0)
-    async def transcribe_audio(self, file_path: str) -> str:
+    async def transcribe_audio(self, input_file_path: str) -> str:
         """Transcribe audio file to text.
         
         Args:
@@ -53,7 +52,7 @@ class TranscriptionService:
         Returns:
             Transcribed text content
         """
-        file_path = Path(file_path)
+        file_path: Path = Path(input_file_path)
         
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -66,12 +65,12 @@ class TranscriptionService:
                 audio_path = self._extract_audio_from_video(file_path)
                 cleanup_audio = True
             else:
-                audio_path = str(file_path)
+                audio_path = file_path
                 cleanup_audio = False
             
             # Transcribe using Whisper with concurrency protection
             async with self._transcription_lock:
-                result = await asyncio.to_thread(self._transcribe_with_whisper, audio_path)
+                result = await asyncio.to_thread(self._transcribe_with_whisper, str(audio_path))
             
             # Cleanup temporary audio file if created
             if cleanup_audio:
@@ -99,7 +98,7 @@ class TranscriptionService:
         try:
             # Use model.transcribe() instead of manual pipeline to avoid concurrency issues
             result = self.model.transcribe(
-                audio_path,
+                str(audio_path),
                 language=None,  # Auto-detect language
                 task="transcribe",
                 fp16=False,  # Use fp32 for better compatibility
@@ -141,7 +140,7 @@ class TranscriptionService:
                 audio_path
             ]
             
-            result = subprocess.run(
+            subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,

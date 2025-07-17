@@ -23,7 +23,7 @@ class FileOrganizer:
         
         logger.info(f"Initialized file organizer with base dir: {self.base_output_dir}")
     
-    def organize_files(self, job_id: str, phrase_downloads: Dict[str, List[str]], source_filename: str = None) -> str:
+    def organize_files(self, job_id: str, phrase_downloads: Dict[str, List[str]], source_filename: str | None = None) -> str:
         """Organize downloaded files into structured project folders.
         
         Args:

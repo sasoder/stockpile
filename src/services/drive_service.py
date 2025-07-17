@@ -3,7 +3,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Dict
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
@@ -104,9 +104,11 @@ class DriveService:
             'parents': [parent_folder_id]
         }
         
-        folder = self.service.files().create(body=folder_metadata, fields='id').execute()
-        folder_id = folder.get('id')
+        folder = self.service.files().create(body=folder_metadata, fields='id').execute() if self.service else None
+        folder_id = folder.get('id') if folder else None
         
+        if not folder_id:
+            raise ValueError(f"Failed to create Google Drive folder: {folder_name}")
         logger.debug(f"Created Google Drive folder: {folder_name} (ID: {folder_id})")
         return folder_id
     
@@ -132,9 +134,11 @@ class DriveService:
             body=file_metadata,
             media_body=media,
             fields='id'
-        ).execute()
+        ).execute() if self.service else None
         
-        file_id = file.get('id')
+        file_id = file.get('id') if file else None
+        if not file_id:
+            raise ValueError(f"Failed to upload file: {file_path.name}")
         logger.debug(f"Uploaded file: {file_path.name} (ID: {file_id})")
         return file_id
     

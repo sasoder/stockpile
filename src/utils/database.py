@@ -3,7 +3,7 @@
 import sqlite3
 import logging
 from contextlib import contextmanager
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from pathlib import Path
 
 from models.job import ProcessingJob, JobStatus

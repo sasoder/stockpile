@@ -49,6 +49,8 @@ class BRollProcessor:
         self.transcription_service = TranscriptionService(whisper_model)
         
         gemini_api_key = self.config.get('gemini_api_key')
+        if not gemini_api_key:
+            raise ValueError("Gemini API key is required")
         gemini_model = self.config.get('gemini_model', 'gemini-2.0-flash-001')
         self.ai_service = AIService(gemini_api_key, gemini_model)
         
@@ -72,6 +74,8 @@ class BRollProcessor:
             client_id = self.config.get('google_client_id')
             client_secret = self.config.get('google_client_secret')
             output_folder_id = self.config.get('google_drive_output_folder_id')
+            if not all([client_id, client_secret, output_folder_id]):
+                raise ValueError("Google Drive requires client_id, client_secret, and output_folder_id")
             self.drive_service = DriveService(client_id, client_secret, output_folder_id)
         else:
             self.drive_service = None
@@ -161,7 +165,7 @@ class BRollProcessor:
         # Find existing job in queue
         job = next((j for j in self.job_queue if j.file_path == file_path), None)
         if not job:
-            return None
+            raise ValueError(f"Job not found for file: {file_path}")
         
         try:
             # Move job to processing
@@ -214,13 +218,15 @@ class BRollProcessor:
         job.update_status(JobStatus.ORGANIZING)
         save_job_progress(job, self.db_path)
         source_filename = Path(job.file_path).name if job.file_path else None
+        if not source_filename:
+            raise ValueError("Source filename is required for project structure")
         project_dir = await self._create_project_structure(job.job_id, source_filename, search_phrases)
         job.output_path = project_dir
         save_job_progress(job, self.db_path)
         
         # Step 3.5: Create Drive folder structure if Drive service is enabled
         drive_folder_structure = {}
-        if self.drive_service:
+        if self.drive_service and source_filename:
             project_name = self._generate_project_name(job.job_id, source_filename)
             loop = asyncio.get_event_loop()
             drive_folder_structure = await loop.run_in_executor(
@@ -437,8 +443,7 @@ class BRollProcessor:
         drive_folder_url = await loop.run_in_executor(
             None,
             self.drive_service.upload_folder,
-            output_path,
-            job_id
+            output_path
         )
         
         return drive_folder_url

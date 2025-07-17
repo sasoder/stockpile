@@ -1,7 +1,6 @@
 """Video download service using yt-dlp."""
 
 import logging
-import os
 import re
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -101,7 +100,7 @@ class VideoDownloader:
     
     
     def download_videos_to_folder(self, videos: List[ScoredVideo], phrase: str, target_folder: str, 
-                                 drive_service=None, drive_folder_id: str = None) -> List[str]:
+                                 drive_service=None, drive_folder_id: str | None = None) -> List[str]:
         """Download videos directly to a specific target folder with optional Drive upload.
         
         Args:
@@ -273,7 +272,8 @@ class VideoDownloader:
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                return ydl.sanitize_info(info) if info else None
+                result = ydl.sanitize_info(info) if info else None
+                return result if isinstance(result, dict) else {}
         except Exception as e:
             logger.error(f"Failed to extract info for {url}: {e}")
             return None
@@ -340,6 +340,6 @@ class VideoDownloader:
                 total_size += file_path.stat().st_size
         
         return {
-            'total_files': total_files,
-            'total_size_mb': round(total_size / (1024 * 1024), 2)
+            'total_files': int(total_files),
+            'total_size_mb': int(round(total_size / (1024 * 1024), 2))
         }

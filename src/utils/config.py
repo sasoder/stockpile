@@ -2,11 +2,11 @@
 
 import os
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 from pathlib import Path
 from dotenv import load_dotenv
 from rich.logging import RichHandler
-from rich.console import Console
+
 
 # Get the project root directory (parent of src)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -18,7 +18,7 @@ load_dotenv(PROJECT_ROOT / '.env')
 def load_config() -> Dict:
     """Load configuration from environment variables."""
     # Helper function to resolve paths relative to project root
-    def resolve_path(path: str, default_relative: str) -> str:
+    def resolve_path(path: str | None, default_relative: str) -> str:
         if not path:
             return str(PROJECT_ROOT / default_relative)
         if Path(path).is_absolute():
