@@ -169,8 +169,12 @@ class FileMonitor:
         """Start monitoring local folder for new files."""
         folder = Path(folder_path)
         if not folder.exists():
-            logger.warning(f"Local input folder does not exist: {folder_path}")
-            return
+            try:
+                folder.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created local input folder: {folder_path}")
+            except Exception as e:
+                logger.error(f"Failed to create local input folder {folder_path}: {e}")
+                return
         
         # Process existing files first
         self._process_existing_files(folder)
