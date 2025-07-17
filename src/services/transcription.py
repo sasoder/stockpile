@@ -84,7 +84,6 @@ class TranscriptionService:
             if cleanup_audio:
                 Path(audio_path).unlink(missing_ok=True)
 
-            logger.info(f"Transcription completed. Length: {len(result)} characters")
             return result
 
         except Exception as e:

@@ -30,7 +30,7 @@ def video_filter(info: Dict) -> Optional[str]:
     """
     config = load_config()
     max_duration = config.get("max_video_duration_seconds", 600)
-    max_size = config.get("max_video_size_bytes", 100 * 1024 * 1024)
+    max_size = config.get("max_video_size_mb", 100) * 1024 * 1024
     # Check duration
     duration = info.get("duration")
     if duration is not None and duration > max_duration:
@@ -172,6 +172,10 @@ class VideoDownloader:
             Path to downloaded file or None if failed
         """
 
+        # Get config for file size limit
+        config = load_config()
+        max_size = config.get("max_video_size_mb", 100) * 1024 * 1024
+
         # Configure yt-dlp options
         ydl_opts = {
             # Output template with score prefix for easy identification
@@ -220,7 +224,7 @@ class VideoDownloader:
                     "error",
                 ],
             },
-            "max_filesize": 100 * 1024 * 1024,  # 100MB max
+            "max_filesize": max_size,  # Use configured max size
             # Logging options - complete suppression
             "quiet": True,  # Suppress most output
             "no_progress": True,  # Disable progress bar
