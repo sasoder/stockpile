@@ -218,6 +218,20 @@ class BRollProcessor:
         job.output_path = project_dir
         save_job_progress(job, self.db_path)
         
+        # Step 3.5: Create Drive folder structure if Drive service is enabled
+        drive_folder_structure = {}
+        if self.drive_service:
+            project_name = self._generate_project_name(job.job_id, source_filename)
+            loop = asyncio.get_event_loop()
+            drive_folder_structure = await loop.run_in_executor(
+                None,
+                self.drive_service.create_project_structure,
+                project_name,
+                search_phrases
+            )
+            job.drive_folder_url = f"https://drive.google.com/drive/folders/{drive_folder_structure.get('project_id', '')}"
+            save_job_progress(job, self.db_path)
+        
         # Step 4: Search and download B-roll for each phrase
         job.update_status(JobStatus.SEARCHING_YOUTUBE)
         save_job_progress(job, self.db_path)
@@ -237,31 +251,28 @@ class BRollProcessor:
             # Get target folder for this phrase
             phrase_folder = Path(project_dir) / self.file_organizer._sanitize_folder_name(phrase)
             
-            # Use the video downloader's new method
+            # Get Drive folder ID if Drive service is enabled
+            drive_phrase_folder_id = None
+            if self.drive_service and drive_folder_structure:
+                drive_phrase_folder_id = drive_folder_structure.get('phrase_folders', {}).get(phrase)
+            
+            # Download videos with optional immediate upload
             loop = asyncio.get_event_loop()
             downloaded_files = await loop.run_in_executor(
                 None,
                 self.video_downloader.download_videos_to_folder,
                 scored_videos,
                 phrase,
-                str(phrase_folder)
+                str(phrase_folder),
+                self.drive_service,
+                drive_phrase_folder_id
             )
             phrase_downloads[phrase] = downloaded_files
         
         job.downloaded_files = phrase_downloads
         save_job_progress(job, self.db_path)
         
-        # Step 5: Upload to Google Drive if configured
-        if self.drive_service:
-            job.update_status(JobStatus.UPLOADING)
-            save_job_progress(job, self.db_path)
-            drive_folder_url = await self.upload_to_drive(project_dir, job.job_id)
-            # Store the Drive URL for notifications (only if upload succeeded)
-            if drive_folder_url:
-                job.drive_folder_url = drive_folder_url
-                save_job_progress(job, self.db_path)
-        
-        # Step 6: Send notification
+        # Step 5: Send notification
         await self.send_notification(job.job_id, "completed", "Job completed successfully")
     
     async def transcribe_audio(self, file_path: str) -> str:
@@ -396,6 +407,18 @@ class BRollProcessor:
         )
         
         return project_path
+    
+    def _generate_project_name(self, job_id: str, source_filename: str) -> str:
+        """Generate a consistent project name for both local and Drive folders."""
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if source_filename:
+            source_base = Path(source_filename).stem
+            source_base = self.file_organizer._sanitize_folder_name(source_base)[:30]
+            return f"stockpile_{source_base}_{job_id[:8]}_{timestamp}"
+        else:
+            return f"stockpile_project_{job_id[:8]}_{timestamp}"
     
     async def upload_to_drive(self, output_path: str, job_id: str) -> str:
         """Upload organized content to Google Drive."""

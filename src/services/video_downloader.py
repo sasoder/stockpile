@@ -99,13 +99,17 @@ class VideoDownloader:
         logger.info(f"Download completed: {len(downloaded_files)} videos for phrase: '{phrase}'")
         return downloaded_files
     
-    def download_videos_to_folder(self, videos: List[ScoredVideo], phrase: str, target_folder: str) -> List[str]:
-        """Download videos directly to a specific target folder.
+    
+    def download_videos_to_folder(self, videos: List[ScoredVideo], phrase: str, target_folder: str, 
+                                 drive_service=None, drive_folder_id: str = None) -> List[str]:
+        """Download videos directly to a specific target folder with optional Drive upload.
         
         Args:
             videos: List of scored videos to download
             phrase: Search phrase (for logging)
             target_folder: Exact target folder path
+            drive_service: Optional DriveService instance for immediate upload
+            drive_folder_id: Drive folder ID to upload to
             
         Returns:
             List of paths to downloaded files
@@ -126,6 +130,14 @@ class VideoDownloader:
                 if downloaded_file:
                     downloaded_files.append(downloaded_file)
                     logger.info(f"Downloaded: {Path(downloaded_file).name}")
+                    
+                    # Upload to Drive if service and folder ID are provided
+                    if drive_service and drive_folder_id:
+                        try:
+                            drive_service.upload_file(downloaded_file, drive_folder_id)
+                            logger.info(f"Uploaded to Drive: {Path(downloaded_file).name}")
+                        except Exception as e:
+                            logger.error(f"Drive upload failed for {Path(downloaded_file).name}: {e}")
                 else:
                     logger.warning(f"Failed to download video: {video.video_id}")
             except Exception as e:

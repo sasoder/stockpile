@@ -87,40 +87,6 @@ class DriveService:
         self.service = build('drive', 'v3', credentials=creds)
         logger.info("Google Drive service authenticated successfully")
     
-    @retry_api_call(max_retries=3, base_delay=2.0)
-    def upload_folder(self, local_folder_path: str, job_id: str) -> str:
-        """Upload a local folder to Google Drive.
-        
-        Args:
-            local_folder_path: Path to local folder to upload
-            job_id: Job identifier for folder naming
-            
-        Returns:
-            URL to the Google Drive folder
-        """
-        local_path = Path(local_folder_path)
-        if not local_path.exists():
-            raise FileNotFoundError(f"Local folder not found: {local_folder_path}")
-        
-        try:
-            folder_name = local_path.name
-            project_folder_id = self._create_folder(folder_name, self.output_folder_id)
-            
-            # Upload all files and subfolders
-            self._upload_directory_contents(local_path, project_folder_id)
-            
-            # Return shareable URL
-            folder_url = f"https://drive.google.com/drive/folders/{project_folder_id}"
-            logger.info(f"Successfully uploaded folder to Google Drive: {folder_url}")
-            return folder_url
-            
-        except Exception as e:
-            logger.error(f"Failed to upload folder to Google Drive: {e}")
-            if "quota" in str(e).lower():
-                raise TemporaryServiceError(f"Google Drive quota exceeded: {e}")
-            elif "network" in str(e).lower():
-                raise NetworkError(f"Network error: {e}")
-            raise
     
     def _create_folder(self, folder_name: str, parent_folder_id: str) -> str:
         """Create a folder in Google Drive.
@@ -144,34 +110,6 @@ class DriveService:
         logger.debug(f"Created Google Drive folder: {folder_name} (ID: {folder_id})")
         return folder_id
     
-    def _upload_directory_contents(self, local_dir: Path, drive_folder_id: str) -> None:
-        """Recursively upload directory contents to Google Drive.
-        
-        Args:
-            local_dir: Local directory path
-            drive_folder_id: Google Drive folder ID to upload to
-        """
-        for item in local_dir.iterdir():
-            # Skip hidden files and folders (anything starting with .)
-            if item.name.startswith('.'):
-                logger.debug(f"Skipping hidden file/folder: {item.name}")
-                continue
-            
-            # Skip partial downloads
-            if item.name.endswith('.part'):
-                logger.debug(f"Skipping partial download: {item.name}")
-                continue
-                
-            if item.is_file():
-                self._upload_file(item, drive_folder_id)
-            elif item.is_dir():
-                # Skip empty folders
-                if not any(item.iterdir()):
-                    logger.debug(f"Skipping empty folder: {item.name}")
-                    continue
-                # Create subfolder and upload its contents
-                subfolder_id = self._create_folder(item.name, drive_folder_id)
-                self._upload_directory_contents(item, subfolder_id)
     
     def _upload_file(self, file_path: Path, parent_folder_id: str) -> str:
         """Upload a single file to Google Drive.
@@ -199,3 +137,81 @@ class DriveService:
         file_id = file.get('id')
         logger.debug(f"Uploaded file: {file_path.name} (ID: {file_id})")
         return file_id
+    
+    def upload_file(self, file_path: str, parent_folder_id: str) -> str:
+        """Upload a single file to Google Drive folder.
+        
+        Args:
+            file_path: Path to local file to upload
+            parent_folder_id: Google Drive folder ID to upload to
+            
+        Returns:
+            Uploaded file ID
+        """
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        # Skip hidden files and partial downloads
+        if file_path_obj.name.startswith('.') or file_path_obj.name.endswith('.part'):
+            logger.debug(f"Skipping file: {file_path_obj.name}")
+            return ""
+        
+        try:
+            file_id = self._upload_file(file_path_obj, parent_folder_id)
+            logger.info(f"Successfully uploaded file to Google Drive: {file_path_obj.name}")
+            return file_id
+            
+        except Exception as e:
+            logger.error(f"Failed to upload file to Google Drive: {e}")
+            if "quota" in str(e).lower():
+                raise TemporaryServiceError(f"Google Drive quota exceeded: {e}")
+            elif "network" in str(e).lower():
+                raise NetworkError(f"Network error: {e}")
+            raise
+    
+    @retry_api_call(max_retries=3, base_delay=2.0)
+    def create_project_structure(self, project_name: str, phrase_names: List[str]) -> Dict[str, str]:
+        """Create complete project folder structure in Drive.
+        
+        Args:
+            project_name: Name of the project folder
+            phrase_names: List of phrase names to create subfolders for
+            
+        Returns:
+            Dictionary with 'project_id' and 'phrase_folders' mapping phrase -> folder_id
+        """
+        try:
+            # Create main project folder
+            project_folder_id = self._create_folder(project_name, self.output_folder_id)
+            
+            # Create phrase subfolders
+            phrase_folders = {}
+            for phrase in phrase_names:
+                # Sanitize phrase name for folder
+                sanitized_phrase = self._sanitize_folder_name(phrase)
+                phrase_folder_id = self._create_folder(sanitized_phrase, project_folder_id)
+                phrase_folders[phrase] = phrase_folder_id
+            
+            logger.info(f"Created Drive project structure: {project_name} with {len(phrase_folders)} phrase folders")
+            return {
+                'project_id': project_folder_id,
+                'phrase_folders': phrase_folders
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create Drive project structure: {e}")
+            if "quota" in str(e).lower():
+                raise TemporaryServiceError(f"Google Drive quota exceeded: {e}")
+            elif "network" in str(e).lower():
+                raise NetworkError(f"Network error: {e}")
+            raise
+    
+    def _sanitize_folder_name(self, name: str) -> str:
+        """Sanitize folder name for Drive compatibility."""
+        import re
+        sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
+        sanitized = re.sub(r'\s+', '_', sanitized)
+        sanitized = sanitized.strip('._')
+        return sanitized[:50] if sanitized else 'unnamed'
+
