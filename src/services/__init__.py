@@ -1,1 +1,1 @@
-# Service implementations for B-Roll Video Processor
+# Service implementations for Stockpile

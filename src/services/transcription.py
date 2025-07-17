@@ -1,5 +1,6 @@
 """Audio transcription service using OpenAI Whisper."""
 
+import asyncio
 import logging
 import subprocess
 import tempfile
@@ -24,6 +25,7 @@ class TranscriptionService:
         """
         self.model_name = model_name
         self.model = None
+        self._transcription_lock = asyncio.Lock()  # Prevent concurrent access to shared model
         self._load_model()
     
     def _load_model(self) -> None:
@@ -42,7 +44,7 @@ class TranscriptionService:
             raise
     
     @retry_api_call(max_retries=3, base_delay=2.0)
-    def transcribe_audio(self, file_path: str) -> str:
+    async def transcribe_audio(self, file_path: str) -> str:
         """Transcribe audio file to text.
         
         Args:
@@ -67,8 +69,9 @@ class TranscriptionService:
                 audio_path = str(file_path)
                 cleanup_audio = False
             
-            # Transcribe using Whisper
-            result = self._transcribe_with_whisper(audio_path)
+            # Transcribe using Whisper with concurrency protection
+            async with self._transcription_lock:
+                result = await asyncio.to_thread(self._transcribe_with_whisper, audio_path)
             
             # Cleanup temporary audio file if created
             if cleanup_audio:
@@ -84,6 +87,9 @@ class TranscriptionService:
     def _transcribe_with_whisper(self, audio_path: str) -> str:
         """Perform the actual transcription using Whisper.
         
+        This method is called from within asyncio.to_thread to avoid blocking.
+        Concurrency is controlled by the lock in transcribe_audio.
+        
         Args:
             audio_path: Path to audio file
             
@@ -91,31 +97,16 @@ class TranscriptionService:
             Transcribed text
         """
         try:
-            # Load and preprocess audio
-            audio = whisper.load_audio(audio_path)
-            audio = whisper.pad_or_trim(audio)
-            
-            # Create mel spectrogram
-            mel = whisper.log_mel_spectrogram(audio, n_mels=self.model.dims.n_mels).to(self.model.device)
-            
-            # Detect language
-            _, probs = self.model.detect_language(mel)
-            detected_language = max(probs, key=probs.get)
-            confidence = probs[detected_language]
-            
-            logger.info(f"Detected language: {detected_language} (confidence: {confidence:.2f})")
-            
-            # Set up decoding options
-            options = whisper.DecodingOptions(
-                language=detected_language if confidence > 0.5 else "en",
-                without_timestamps=True,
-                fp16=False  # Use fp32 for better compatibility
+            # Use model.transcribe() instead of manual pipeline to avoid concurrency issues
+            result = self.model.transcribe(
+                audio_path,
+                language=None,  # Auto-detect language
+                task="transcribe",
+                fp16=False,  # Use fp32 for better compatibility
+                verbose=False
             )
             
-            # Decode audio
-            result = whisper.decode(self.model, mel, options)
-            
-            return result.text.strip()
+            return result["text"].strip()
             
         except Exception as e:
             logger.error(f"Whisper transcription failed: {e}")

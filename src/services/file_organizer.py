@@ -1,4 +1,4 @@
-"""File organization service for structuring B-roll downloads."""
+"""File organization service for structuring downloads."""
 
 import logging
 import shutil

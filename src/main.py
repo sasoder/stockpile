@@ -1,4 +1,4 @@
-"""Main application entry point for B-Roll Video Processor."""
+"""Main application entry point for Stockpile."""
 
 import asyncio
 import logging
@@ -14,18 +14,18 @@ logger = logging.getLogger(__name__)
 
 
 class BRollApp:
-    """Main application class for B-Roll Video Processor."""
+    """Main application class for Stockpile."""
     
     def __init__(self):
         self.processor: Optional[BRollProcessor] = None
         self.running = False
     
     async def start(self) -> None:
-        """Start the B-Roll Processor application."""
+        """Start the Stockpile application."""
         try:
             # Setup logging
             setup_logging()
-            logger.info("Starting B-Roll Video Processor...")
+            logger.info("Starting Stockpile...")
             
             # Initialize processor
             config = load_config()
@@ -39,7 +39,7 @@ class BRollApp:
             signal.signal(signal.SIGINT, self._signal_handler)
             signal.signal(signal.SIGTERM, self._signal_handler)
             
-            logger.info("B-Roll Video Processor started successfully")
+            logger.info("Stockpile started successfully")
             
             # Keep the application running
             while self.running:

@@ -23,6 +23,7 @@ aiofiles>=23.2.0
 python-dotenv>=1.0.0
 pydantic>=2.5.0
 requests>=2.31.0
+rich>=13.0.0
 
 # Development dependencies
 pytest>=7.4.0

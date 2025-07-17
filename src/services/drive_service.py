@@ -102,8 +102,6 @@ class DriveService:
         if not local_path.exists():
             raise FileNotFoundError(f"Local folder not found: {local_folder_path}")
         
-        logger.info(f"Uploading folder to Google Drive: {local_folder_path}")
-        
         try:
             folder_name = local_path.name
             project_folder_id = self._create_folder(folder_name, self.output_folder_id)
@@ -113,7 +111,7 @@ class DriveService:
             
             # Return shareable URL
             folder_url = f"https://drive.google.com/drive/folders/{project_folder_id}"
-            logger.info(f"Successfully uploaded folder to Google Drive: {folder_name}")
+            logger.info(f"Successfully uploaded folder to Google Drive: {folder_url}")
             return folder_url
             
         except Exception as e:

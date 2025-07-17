@@ -210,7 +210,7 @@ Format: [{{"video_id": "abc123", "score": 9}}, {{"video_id": "def456", "score": 
 Return only the JSON array, nothing else."""
         
         try:
-            logger.info(f"Evaluating {len(video_results)} videos for phrase: {search_phrase}")
+            logger.debug(f"Evaluating {len(video_results)} videos for phrase: {search_phrase}")
             
             response = self.client.models.generate_content(
                 model=self.model_name,

@@ -9,6 +9,11 @@ from utils.retry import retry_api_call, NetworkError, TemporaryServiceError
 
 logger = logging.getLogger(__name__)
 
+# Configure yt-dlp logging to be silent
+logging.getLogger('yt_dlp').setLevel(logging.CRITICAL)
+logging.getLogger('yt_dlp.extractor').setLevel(logging.CRITICAL)
+logging.getLogger('yt_dlp.downloader').setLevel(logging.CRITICAL)
+
 
 class YouTubeService:
     """Service for searching YouTube videos using yt-dlp."""
@@ -50,7 +55,7 @@ class YouTubeService:
                     if video_result:
                         video_results.append(video_result)
                 
-                logger.info(f"Found {len(video_results)} videos for '{search_phrase}'")
+                logger.debug(f"Found {len(video_results)} videos for '{search_phrase}'")
                 return video_results
                 
         except Exception as e:

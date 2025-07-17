@@ -1,4 +1,4 @@
-"""Job and status models for B-Roll Video Processor."""
+"""Job and status models for Stockpile."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -22,7 +22,7 @@ class JobStatus(Enum):
 
 @dataclass
 class ProcessingJob:
-    """Represents a B-roll processing job with all its state."""
+    """Represents a processing job with all its state."""
     
     job_id: str
     file_path: str

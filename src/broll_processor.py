@@ -1,4 +1,4 @@
-"""Main B-Roll Processor class for orchestrating the entire workflow."""
+"""Main Stockpile class for orchestrating the entire workflow."""
 
 import logging
 import uuid
@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 
 
 class BRollProcessor:
-    """Central orchestrator for B-roll video processing workflow."""
+    """Central orchestrator for Stockpile."""
     
     def __init__(self, config: Optional[Dict] = None):
-        """Initialize the B-Roll Processor with configuration."""
+        """Initialize the Stockpile with configuration."""
         self.config = config or load_config()
         self.db_path = self.config.get('database_path', 'stockpile_jobs.db')
         self.job_queue: List[ProcessingJob] = []
@@ -79,11 +79,11 @@ class BRollProcessor:
         # Initialize file monitor
         self.file_monitor = FileMonitor(self.config, self._handle_new_file)
         
-        logger.info("B-Roll Processor initialized successfully")
+        logger.info("Stockpile initialized successfully")
     
     def start(self) -> None:
         """Start the processor and resume incomplete jobs."""
-        logger.info("Starting B-Roll Processor...")
+        logger.info("Starting Stockpile...")
         
         # Store the event loop for cross-thread task scheduling
         self.event_loop = asyncio.get_running_loop()
@@ -272,13 +272,8 @@ class BRollProcessor:
         if not self.transcription_service.is_supported_file(file_path):
             raise ValueError(f"Unsupported file format: {Path(file_path).suffix}")
         
-        # Run transcription in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        transcript = await loop.run_in_executor(
-            None, 
-            self.transcription_service.transcribe_audio, 
-            file_path
-        )
+        # Run transcription with concurrency protection
+        transcript = await self.transcription_service.transcribe_audio(file_path)
         
         logger.info(f"Transcription completed. Length: {len(transcript)} characters")
         return transcript
@@ -423,7 +418,6 @@ class BRollProcessor:
             job_id
         )
         
-        logger.info(f"Successfully uploaded to Google Drive: {drive_folder_url}")
         return drive_folder_url
     
     async def send_notification(self, job_id: str, status: str, message: str) -> None:

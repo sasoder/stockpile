@@ -1,27 +1,40 @@
-"""Configuration loading and validation for B-Roll Video Processor."""
+"""Configuration loading and validation for Stockpile."""
 
 import os
 import logging
 from typing import Dict, List, Optional
 from pathlib import Path
 from dotenv import load_dotenv
+from rich.logging import RichHandler
+from rich.console import Console
 
-# Load environment variables from .env file
-load_dotenv()
+# Get the project root directory (parent of src)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+# Load environment variables from .env file in project root
+load_dotenv(PROJECT_ROOT / '.env')
 
 
 def load_config() -> Dict:
     """Load configuration from environment variables."""
+    # Helper function to resolve paths relative to project root
+    def resolve_path(path: str, default_relative: str) -> str:
+        if not path:
+            return str(PROJECT_ROOT / default_relative)
+        if Path(path).is_absolute():
+            return path
+        return str(PROJECT_ROOT / path)
+    
     config = {
         # Required API keys
         'gemini_api_key': os.getenv('GEMINI_API_KEY'),
         
         # Input sources (at least one required)
-        'local_input_folder': os.getenv('LOCAL_INPUT_FOLDER', '../input'),
+        'local_input_folder': resolve_path(os.getenv('LOCAL_INPUT_FOLDER'), 'input'),
         'google_drive_input_folder_id': os.getenv('GOOGLE_DRIVE_INPUT_FOLDER_ID'),
         
         # Output destinations (at least one required)
-        'local_output_folder': os.getenv('LOCAL_OUTPUT_FOLDER', '../output'),
+        'local_output_folder': resolve_path(os.getenv('LOCAL_OUTPUT_FOLDER'), 'output'),
         'google_drive_output_folder_id': os.getenv('GOOGLE_DRIVE_OUTPUT_FOLDER_ID'),
         
         
@@ -37,8 +50,8 @@ def load_config() -> Dict:
         'max_videos_per_phrase': int(os.getenv('MAX_VIDEOS_PER_PHRASE', '3')),
         'max_video_duration_seconds': int(os.getenv('MAX_VIDEO_DURATION_SECONDS', '600')),
         
-        # Database
-        'database_path': os.getenv('DATABASE_PATH', 'stockpile_jobs.db'),
+        # Database (always relative to src directory)
+        'database_path': str(PROJECT_ROOT / 'src' / os.getenv('DATABASE_PATH', 'stockpile_jobs.db')),
     }
     
     return config
@@ -93,15 +106,46 @@ def validate_config(config: Dict) -> List[str]:
 
 
 def setup_logging(log_level: str = "INFO") -> None:
-    """Set up logging configuration."""
+    """Set up logging configuration with Rich for beautiful terminal output."""
+    # Clear any existing handlers
+    logging.root.handlers.clear()
+    
+    # Rich handler for beautiful console output
+    rich_handler = RichHandler(
+        show_time=True,
+        show_level=True,
+        show_path=False,
+        rich_tracebacks=True,
+        markup=False  # Disable markup to avoid conflicts
+    )
+    
+    # File handler for plain text logging (always in src directory)
+    log_file = PROJECT_ROOT / 'src' / 'broll_processor.log'
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    
+    # Configure root logger
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('broll_processor.log')
-        ]
+        handlers=[rich_handler, file_handler],
+        format="%(message)s"
     )
+    
+    # Suppress noisy third-party loggers
+    noisy_loggers = [
+        'httpx',
+        'google_genai',
+        'google_genai.models',
+        'googleapiclient.discovery_cache',
+        'google_auth_oauthlib.flow',
+        'urllib3.connectionpool',
+        'requests.packages.urllib3.connectionpool'
+    ]
+    
+    for logger_name in noisy_loggers:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
 def get_supported_video_formats() -> List[str]:
