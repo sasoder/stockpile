@@ -152,6 +152,16 @@ class DriveService:
             drive_folder_id: Google Drive folder ID to upload to
         """
         for item in local_dir.iterdir():
+            # Skip hidden files and folders (anything starting with .)
+            if item.name.startswith('.'):
+                logger.debug(f"Skipping hidden file/folder: {item.name}")
+                continue
+            
+            # Skip partial downloads
+            if item.name.endswith('.part'):
+                logger.debug(f"Skipping partial download: {item.name}")
+                continue
+                
             if item.is_file():
                 self._upload_file(item, drive_folder_id)
             elif item.is_dir():
