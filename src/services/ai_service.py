@@ -12,6 +12,25 @@ from models.video import VideoResult, ScoredVideo
 logger = logging.getLogger(__name__)
 
 
+def strip_markdown_code_blocks(text: str) -> str:
+    """Strip markdown code blocks from AI response text.
+    
+    Args:
+        text: Raw text that may contain markdown code blocks
+        
+    Returns:
+        Cleaned text with markdown code blocks removed
+    """
+    text = text.strip()
+    if text.startswith('```json'):
+        text = text[7:]  # Remove ```json
+    elif text.startswith('```'):
+        text = text[3:]  # Remove ```
+    if text.endswith('```'):
+        text = text[:-3]  # Remove ```
+    return text.strip()
+
+
 class AIService:
     """Service for AI-powered phrase extraction and video evaluation using Gemini."""
     
@@ -90,7 +109,10 @@ TRANSCRIPT ↓
             
             # Parse JSON response
             try:
-                phrases = json.loads(response.text)
+                # Strip markdown code blocks if present
+                response_text = strip_markdown_code_blocks(response.text)
+                
+                phrases = json.loads(response_text)
             except json.JSONDecodeError:
                 # If JSON parsing fails, try to extract phrases from text
                 logger.warning("Failed to parse JSON response, attempting to extract phrases from text")
@@ -200,7 +222,10 @@ Return only the JSON array, nothing else."""
             
             # Parse JSON response
             try:
-                scored_results = json.loads(response.text)
+                # Strip markdown code blocks if present
+                response_text = strip_markdown_code_blocks(response.text)
+                
+                scored_results = json.loads(response_text)
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse video evaluation response as JSON: {response.text}")
                 logger.warning("Attempting to extract video IDs and scores from text response")

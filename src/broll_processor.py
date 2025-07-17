@@ -32,6 +32,7 @@ class BRollProcessor:
         self.db_path = self.config.get('database_path', 'broll_jobs.db')
         self.job_queue: List[ProcessingJob] = []
         self.processing_jobs: Dict[str, ProcessingJob] = {}
+        self.event_loop = None
         
         # Initialize database
         init_database(self.db_path)
@@ -84,11 +85,18 @@ class BRollProcessor:
         """Start the processor and resume incomplete jobs."""
         logger.info("Starting B-Roll Processor...")
         
+        # Store the event loop for cross-thread task scheduling
+        self.event_loop = asyncio.get_running_loop()
+        
         # Resume incomplete jobs
         self.resume_incomplete_jobs()
         
         # Start file monitoring
         self.file_monitor.start_monitoring()
+        
+        # Process any queued jobs
+        for job in self.job_queue[:]:  # Copy list to avoid modification during iteration
+            asyncio.create_task(self.process_video(job.file_path, job.source))
         
         logger.info(f"Processor started with {len(self.job_queue)} jobs in queue")
     
@@ -99,8 +107,14 @@ class BRollProcessor:
         # Create and queue new job
         job_id = self.create_job(file_path, source)
         
-        # Start processing the job asynchronously
-        asyncio.create_task(self.process_video(file_path, source))
+        # Start processing the job asynchronously using the stored event loop
+        if self.event_loop and not self.event_loop.is_closed():
+            asyncio.run_coroutine_threadsafe(
+                self.process_video(file_path, source), 
+                self.event_loop
+            )
+        else:
+            logger.error("No event loop available to schedule job processing")
     
     def create_job(self, file_path: str, source: str) -> str:
         """Create a new processing job and add to queue."""
