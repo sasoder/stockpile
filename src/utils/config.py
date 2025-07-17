@@ -46,6 +46,9 @@ def load_config() -> Dict:
         'google_client_id': os.getenv('GOOGLE_CLIENT_ID'),
         'google_client_secret': os.getenv('GOOGLE_CLIENT_SECRET'),
         
+        # Email notifications
+        'notification_email': os.getenv('NOTIFICATION_EMAIL'),  # Optional: if not set, uses authenticated user's email
+        
         # Processing settings
         'max_videos_per_phrase': int(os.getenv('MAX_VIDEOS_PER_PHRASE', '3')),
         'max_video_duration_seconds': int(os.getenv('MAX_VIDEO_DURATION_SECONDS', '600')),

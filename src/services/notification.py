@@ -28,7 +28,7 @@ SCOPES = [
 class NotificationService:
     """Service for sending email notifications using Gmail API."""
     
-    def __init__(self, client_id: str, client_secret: str):
+    def __init__(self, client_id: str, client_secret: str, notification_email: Optional[str] = None):
         """Initialize notification service with Google OAuth credentials.
         
         Args:
@@ -37,6 +37,7 @@ class NotificationService:
         """
         self.client_id = client_id
         self.client_secret = client_secret
+        self.notification_email = notification_email
         self.service = None
         self.user_email = None
         
@@ -93,14 +94,12 @@ class NotificationService:
         # Build the Gmail service
         self.service = build("gmail", "v1", credentials=creds)
         
-        # Get user's email address
-        try:
-            profile = self.service.users().getProfile(userId="me").execute()
-            self.user_email = profile["emailAddress"]
-            logger.info(f"Gmail API authenticated for: {self.user_email}")
-        except HttpError as error:
-            logger.error(f"Failed to get user profile: {error}")
-            raise
+        # Set email address for notifications
+        if self.notification_email:
+            self.user_email = self.notification_email
+            logger.info(f"Using configured notification email: {self.user_email}")
+        else:
+            logger.info("No notification email configured. Notifications will not be sent.")
     
     @retry_api_call(max_retries=3, base_delay=2.0)
     def send_notification(self, job_id: str, status: str, message: str, 
@@ -184,6 +183,8 @@ Message: {message}{output_info}
         try:
             # Create message
             message = MIMEText(body, 'plain')
+            if not self.user_email:
+                raise ValueError("User email is required for notifications")
             message['To'] = self.user_email
             message['From'] = self.user_email
             message['Subject'] = subject
@@ -192,6 +193,8 @@ Message: {message}{output_info}
             raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
             
             # Send message
+            if not self.service:
+                raise ValueError("Gmail service not initialized")
             send_message = self.service.users().messages().send(
                 userId="me",
                 body={"raw": raw_message}

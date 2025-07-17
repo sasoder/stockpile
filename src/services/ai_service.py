@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import List, Dict, Optional
+from typing import List
 from google.genai import Client
 from google.genai import types
 
@@ -110,6 +110,9 @@ TRANSCRIPT ↓
             # Parse JSON response
             try:
                 # Strip markdown code blocks if present
+                if not response.text:
+                    logger.error("AI response is empty")
+                    return []
                 response_text = strip_markdown_code_blocks(response.text)
                 
                 phrases = json.loads(response_text)
@@ -120,6 +123,9 @@ TRANSCRIPT ↓
                 import re
                 # Look for quoted phrases or lines that look like phrases
                 text = response.text
+                if not text:
+                    logger.error("AI response is empty")
+                    return []
                 phrases = re.findall(r'"([^"]+)"', text)
                 if not phrases:
                     # Fallback: split by lines and filter
@@ -223,6 +229,9 @@ Return only the JSON array, nothing else."""
             # Parse JSON response
             try:
                 # Strip markdown code blocks if present
+                if not response.text:
+                    logger.error("AI response is empty")
+                    return []
                 response_text = strip_markdown_code_blocks(response.text)
                 
                 scored_results = json.loads(response_text)
@@ -231,7 +240,11 @@ Return only the JSON array, nothing else."""
                 logger.warning("Attempting to extract video IDs and scores from text response")
                 import re
                 # Try to extract video_id and score pairs from text
-                matches = re.findall(r'"video_id":\s*"([^"]+)".*?"score":\s*(\d+)', response.text)
+                text = response.text
+                if not text:
+                    logger.error("AI response is empty")
+                    return []
+                matches = re.findall(r'"video_id":\s*"([^"]+)".*?"score":\s*(\d+)', text)
                 scored_results = [{"video_id": vid_id, "score": int(score)} for vid_id, score in matches if int(score) >= 6]
                 if not scored_results:
                     logger.error("Could not extract any valid video evaluations from response")

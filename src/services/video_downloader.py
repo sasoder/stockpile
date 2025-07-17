@@ -19,12 +19,11 @@ logging.getLogger('yt_dlp.downloader').setLevel(logging.CRITICAL)
 logging.getLogger('yt_dlp.postprocessor').setLevel(logging.CRITICAL)
 
 
-def video_filter(info: Dict, incomplete: bool = False) -> Optional[str]:
+def video_filter(info: Dict) -> Optional[str]:
     """Filter videos based on duration and other criteria.
     
     Args:
         info: Video information dictionary from yt-dlp
-        incomplete: Whether this is incomplete info (not used currently)
     
     Returns:
         String describing why video was filtered, or None if it passes
