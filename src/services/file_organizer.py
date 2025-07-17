@@ -179,7 +179,7 @@ class FileOrganizer:
             phrase_dir = project_dir / self._sanitize_folder_name(phrase)
             phrase_dir.mkdir(parents=True, exist_ok=True)
             
-        logger.info(f"Created project structure: {project_dir}")
+        logger.info(f"Created project structure: {project_dir} for job {job_id}")
         return str(project_dir)
     
     def _cleanup_empty_directories(self) -> None:

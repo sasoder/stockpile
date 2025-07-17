@@ -97,8 +97,6 @@ TRANSCRIPT ↓
 >>>"""
         
         try:
-            logger.info("Extracting search phrases from transcript")
-            
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=prompt,
@@ -147,8 +145,6 @@ TRANSCRIPT ↓
             
             # Limit to 10 phrases
             final_phrases = cleaned_phrases[:10]
-            
-            logger.info(f"Extracted {len(final_phrases)} search phrases: {final_phrases}")
             return final_phrases
             
         except json.JSONDecodeError as e:
@@ -216,8 +212,6 @@ Format: [{{"video_id": "abc123", "score": 9}}, {{"video_id": "def456", "score": 
 Return only the JSON array, nothing else."""
         
         try:
-            logger.debug(f"Evaluating {len(video_results)} videos for phrase: {search_phrase}")
-            
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=evaluator_prompt,

@@ -319,7 +319,6 @@ class BRollProcessor:
     
     async def search_youtube_videos(self, phrase: str) -> List[VideoResult]:
         """Search YouTube for videos matching the phrase."""
-        logger.info(f"Searching YouTube for: {phrase}")
         
         if not phrase or not phrase.strip():
             logger.warning("Empty search phrase provided")
@@ -338,7 +337,6 @@ class BRollProcessor:
     
     async def evaluate_videos(self, phrase: str, videos: List[VideoResult]) -> List[ScoredVideo]:
         """Evaluate videos using Gemini AI."""
-        logger.info(f"Evaluating {len(videos)} videos for phrase: {phrase}")
         
         if not videos:
             logger.info(f"No videos to evaluate for phrase: {phrase}")
@@ -403,8 +401,6 @@ class BRollProcessor:
     
     async def _create_project_structure(self, job_id: str, source_filename: str, phrases: List[str]) -> str:
         """Create the project folder structure upfront."""
-        logger.info(f"Creating project structure for job: {job_id}")
-        
         # Run project creation in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
         project_path = await loop.run_in_executor(
