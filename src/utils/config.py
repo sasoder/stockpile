@@ -38,7 +38,7 @@ def load_config() -> Dict:
         'max_video_duration_seconds': int(os.getenv('MAX_VIDEO_DURATION_SECONDS', '600')),
         
         # Database
-        'database_path': os.getenv('DATABASE_PATH', 'broll_jobs.db'),
+        'database_path': os.getenv('DATABASE_PATH', 'stockpile_jobs.db'),
     }
     
     return config

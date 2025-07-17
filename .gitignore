@@ -3,6 +3,6 @@
 input
 output
 *.pyc
-src/broll_jobs.db
+src/stockpile_jobs.db
 src/broll_processor.log
 src/token.json

@@ -29,7 +29,7 @@ class BRollProcessor:
     def __init__(self, config: Optional[Dict] = None):
         """Initialize the B-Roll Processor with configuration."""
         self.config = config or load_config()
-        self.db_path = self.config.get('database_path', 'broll_jobs.db')
+        self.db_path = self.config.get('database_path', 'stockpile_jobs.db')
         self.job_queue: List[ProcessingJob] = []
         self.processing_jobs: Dict[str, ProcessingJob] = {}
         self.event_loop = None
