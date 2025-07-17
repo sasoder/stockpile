@@ -241,7 +241,7 @@ class BRollProcessor:
         if self.drive_service:
             job.update_status(JobStatus.UPLOADING)
             save_job_progress(job, self.db_path)
-            drive_folder_url = await self.upload_to_drive(output_path, job.job_id)
+            drive_folder_url = await self.upload_to_drive(project_dir, job.job_id)
             # Store the Drive URL for notifications (only if upload succeeded)
             if drive_folder_url:
                 job.drive_folder_url = drive_folder_url
