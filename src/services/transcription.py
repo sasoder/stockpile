@@ -97,6 +97,8 @@ class TranscriptionService:
         """
         try:
             # Use model.transcribe() instead of manual pipeline to avoid concurrency issues
+            if not self.model:
+                raise ValueError("Whisper model not loaded")
             result = self.model.transcribe(
                 str(audio_path),
                 language=None,  # Auto-detect language
@@ -105,7 +107,11 @@ class TranscriptionService:
                 verbose=False
             )
             
-            return result["text"].strip()
+            text = result.get("text", "")
+            if isinstance(text, str):
+                return text.strip()
+            else:
+                raise ValueError("Transcription result is not a string")
             
         except Exception as e:
             logger.error(f"Whisper transcription failed: {e}")

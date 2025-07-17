@@ -195,6 +195,9 @@ class FileMonitor:
     async def _monitor_drive_folder(self):
         """Monitor Google Drive folder for new files."""
         folder_id = self.config.get('google_drive_input_folder_id')
+        if not folder_id:
+            logger.error("Google Drive folder ID not configured")
+            return
         logger.info(f"Started monitoring Google Drive folder: {folder_id}")
         
         # Get initial file list
@@ -286,6 +289,8 @@ class FileMonitor:
             temp_path = temp_dir / file_name
             
             # Download file
+            if not self.drive_service:
+                raise ValueError("Google Drive service not initialized")
             request = self.drive_service.files().get_media(fileId=file_info['id'])
             
             with open(temp_path, 'wb') as f:

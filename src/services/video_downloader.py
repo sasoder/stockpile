@@ -212,7 +212,7 @@ class VideoDownloader:
                     return None
                 
                 # Pre-filter video before starting download
-                filter_result = video_filter(info, incomplete=False)
+                filter_result = video_filter(info)
                 if filter_result:
                     logger.info(f"Video {video.video_id} filtered out: {filter_result}")
                     return None

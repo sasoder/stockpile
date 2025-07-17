@@ -3,7 +3,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Union
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
@@ -175,7 +175,7 @@ class DriveService:
             raise
     
     @retry_api_call(max_retries=3, base_delay=2.0)
-    def create_project_structure(self, project_name: str, phrase_names: List[str]) -> Dict[str, str]:
+    def create_project_structure(self, project_name: str, phrase_names: List[str]) -> Dict[str, Union[str, Dict[str, str]]]:
         """Create complete project folder structure in Drive.
         
         Args:

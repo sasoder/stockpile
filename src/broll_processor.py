@@ -117,7 +117,7 @@ class BRollProcessor:
         # Start processing the job asynchronously using the stored event loop
         if self.event_loop and not self.event_loop.is_closed():
             asyncio.run_coroutine_threadsafe(
-                self.process_video(file_path, source), 
+                self.process_video(file_path), 
                 self.event_loop
             )
         else:

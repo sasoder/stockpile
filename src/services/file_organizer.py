@@ -221,7 +221,6 @@ class FileOrganizer:
                 "project_name": project_dir.name,
                 "phrase_count": len(phrase_folders),
                 "total_files": total_files,
-                "total_size_mb": self._get_directory_size_mb(project_dir),
                 "phrases": [folder.name for folder in phrase_folders]
             }
             

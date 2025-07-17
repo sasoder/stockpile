@@ -47,7 +47,7 @@ def retry_with_backoff(
                     time.sleep(delay)
             
             # This should never be reached, but just in case
-            raise last_exception
+            raise last_exception or Exception("Unknown error in retry logic")
         
         return wrapper
     return decorator

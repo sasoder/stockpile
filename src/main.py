@@ -49,7 +49,7 @@ class BRollApp:
             logger.error(f"Failed to start application: {e}")
             sys.exit(1)
     
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, signum, _):
         """Handle shutdown signals gracefully."""
         logger.info(f"Received signal {signum}, shutting down gracefully...")
         self.running = False
