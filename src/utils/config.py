@@ -69,8 +69,10 @@ def validate_config(config: Dict) -> List[str]:
     # Validate local paths exist
     if has_local_input:
         input_path = Path(config['local_input_folder'])
-        if not input_path.exists():
-            errors.append(f"Local input folder does not exist: {input_path}")
+        try:
+            input_path.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            errors.append(f"Cannot create local input folder: {e}")
     
     if has_local_output:
         output_path = Path(config['local_output_folder'])
