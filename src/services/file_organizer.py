@@ -205,35 +205,3 @@ class FileOrganizer:
                         logger.warning(f"Could not remove empty directory {item}: {e}")
         except Exception as e:
             logger.warning(f"Error during directory cleanup: {e}")
-
-    def get_project_info(self, project_path: str) -> Dict:
-        """Get information about an organized project.
-
-        Args:
-            project_path: Path to project directory
-
-        Returns:
-            Dictionary with project information
-        """
-        project_dir = Path(project_path)
-        if not project_dir.exists():
-            return {"error": "Project directory not found"}
-
-        try:
-            # Count files and folders
-            phrase_folders = [d for d in project_dir.iterdir() if d.is_dir()]
-            total_files = sum(
-                len([f for f in folder.iterdir() if f.is_file()])
-                for folder in phrase_folders
-            )
-
-            return {
-                "project_name": project_dir.name,
-                "phrase_count": len(phrase_folders),
-                "total_files": total_files,
-                "phrases": [folder.name for folder in phrase_folders],
-            }
-
-        except Exception as e:
-            logger.error(f"Error getting project info for {project_path}: {e}")
-            return {"error": str(e)}
