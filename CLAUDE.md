@@ -2,96 +2,108 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Application Overview
 
-B-Roll Video Processor is a daemon that automatically processes video files to find and organize B-roll footage. It monitors folders for new videos, transcribes them, extracts search phrases using AI, finds matching YouTube videos, and organizes them with email notifications.
-
-## Development Commands
-
-### Setup
-```bash
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### Running the Daemon
-```bash
-# Start daemon (monitors folders continuously)
-cd src && python main.py
-
-# Check job status
-cd src && python main.py status
-```
+Stockpile is a Python-based B-roll video processor that automates the workflow of finding and organizing relevant B-roll footage for video content creators. The system monitors input sources, transcribes videos, uses AI to extract search phrases, downloads matching YouTube content, and organizes everything into structured project folders.
 
 ## Core Architecture
 
-### Processing Pipeline
-1. **File Detection** (`services/file_monitor.py`) - Monitors local/Google Drive folders
-2. **Transcription** (`services/transcription.py`) - Whisper audio-to-text
-3. **AI Phrase Extraction** (`services/ai_service.py`) - B-RollExtractor v6 prompt
-4. **YouTube Search** (`services/youtube_service.py`) - yt-dlp video search
-5. **Video Evaluation** (`services/ai_service.py`) - AI scoring (1-10 scale)
-6. **Download & Organization** (`services/video_downloader.py`, `services/file_organizer.py`)
-7. **Notifications** (`services/notification.py`) - Gmail alerts
+### Main Components
+- **BRollProcessor** (`src/broll_processor.py`) - Central orchestrator that manages the entire workflow
+- **Services Layer** (`src/services/`) - Modular services for each major function:
+  - `transcription.py` - OpenAI Whisper integration for audio-to-text
+  - `ai_service.py` - Google Gemini integration for phrase extraction
+  - `youtube_service.py` - YouTube search and metadata retrieval
+  - `video_downloader.py` - yt-dlp wrapper for downloading videos
+  - `file_organizer.py` - Creates structured output folders
+  - `drive_service.py` - Google Drive integration for input/output
+  - `file_monitor.py` - Watches folders for new files using watchdog
+  - `notification.py` - Email notifications via Gmail
 
-### Key Components
-- **BRollProcessor** (`src/broll_processor.py`) - Main orchestrator
-- **Job Management** (`src/models/job.py`) - SQLite-based state tracking
-- **Configuration** (`src/utils/config.py`) - Environment variable validation
-- **Retry Logic** (`src/utils/retry.py`) - API and network error handling
+### Data Models
+- **ProcessingJob** (`src/models/job.py`) - Tracks job state and progress through pipeline
+- **VideoResult** (`src/models/video.py`) - Represents downloaded videos with metadata
 
-## Critical Implementation Details
+### Utilities
+- **Database** (`src/utils/database.py`) - SQLite operations for job persistence
+- **Config** (`src/utils/config.py`) - Environment variable loading and validation
+- **Retry** (`src/utils/retry.py`) - Exponential backoff for API calls
 
-### B-RollExtractor v6 Prompt
-Located in `src/services/ai_service.py:45-70`. This is the exact prompt from the original n8n workflow:
-- Extracts 5-10 visual search phrases
-- Focuses on concrete, filmable concepts
-- Avoids abstract ideas and copyrighted content
-- Returns JSON array of 1-4 word phrases
+## Common Commands
 
-### File Monitoring
-- **Local**: Uses `watchdog` library for real-time monitoring
-- **Google Drive**: Polls every 30 seconds using Drive API
-- **Supported formats**: Video (.mp4, .avi, .mov, .mkv, .wmv, .flv, .webm, .m4v) and audio (.mp3, .wav, .flac, .aac, .ogg, .m4a, .wma)
+### Development Setup
+```bash
+# Install dependencies (no package.json, use requirements.txt)
+pip install -r requirements.txt
 
-### Configuration Requirements
-Environment variables in `.env`:
-- **Required**: `GEMINI_API_KEY`
-- **Input**: `LOCAL_INPUT_FOLDER` OR `GOOGLE_DRIVE_INPUT_FOLDER_ID`
-- **Output**: `LOCAL_OUTPUT_FOLDER` OR `GOOGLE_DRIVE_OUTPUT_FOLDER_ID`
-- **Google Drive**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **Notifications**: Uses same Google credentials as Drive API
+# Setup environment
+cp .env.example .env
+# Edit .env with your API keys and configuration
+```
 
-## Known Issues
+### Running the Application
+```bash
+# Start daemon mode (monitors folders continuously)
+python -m src.main
 
-### Critical Bug - Email Notifications
-**Location**: `src/broll_processor.py` in `_handle_new_file()` and `process_video()`
-**Issue**: Job failure notifications are never sent because exceptions propagate up without triggering `send_notification()`
-**Fix needed**: Add try/catch in `_handle_new_file()` to catch exceptions and send failure notifications
+# Process a single file
+python -m src.main process /path/to/video.mp4
 
-### Dependencies
-- **External**: Requires ffmpeg system installation
-- **API Keys**: Gemini API for AI processing
-- **OAuth**: Google Drive requires initial browser authentication
+# Check processing status
+python -m src.main status
+```
 
-## Recent Cleanup
+### Development Tools
+```bash
+# Code formatting
+black src/
 
-### Removed Bloat
-- Single file processing functionality
-- Complex HTML email notifications (now simple text)
-- Unused database cleanup function
-- Overly complex status display methods
-- Unused retry imports
+# Type checking
+mypy src/
+
+# Run tests (pytest available but no test suite currently exists)
+pytest
+```
+
+## Key Configuration
+
+The application requires `.env` configuration based on `.env.example`:
+- `GEMINI_API_KEY` - Required for AI phrase extraction
+- Input sources: `LOCAL_INPUT_FOLDER` or `GOOGLE_DRIVE_INPUT_FOLDER_ID`
+- Output destinations: `LOCAL_OUTPUT_FOLDER` or `GOOGLE_DRIVE_OUTPUT_FOLDER_ID`
+- Optional: Google OAuth credentials for Drive integration
+- Optional: Email notification settings
+
+## Processing Pipeline
+
+1. **File Detection** - Monitor input folders for new video/audio files
+2. **Transcription** - Extract audio and convert to text using Whisper
+3. **AI Analysis** - Use Gemini to extract relevant B-roll search phrases
+4. **YouTube Search** - Find matching videos for each phrase
+5. **Download & Organization** - Download videos into phrase-based folder structure
+6. **Notification** - Send completion email if configured
 
 ## Database Schema
-SQLite database tracks job state with these key fields:
-- `job_id`, `status` (pending/processing/completed/failed)
-- `file_path`, `source` (local/google_drive)
-- `transcript`, `search_phrases`, `error_message`
-- `created_at`, `completed_at`
 
-## Development Notes
-- All services use `@retry_api_call` decorator for network resilience
-- Temporary files auto-cleaned after processing
-- Job state persists across application restarts
+Jobs are tracked in SQLite with states: pending, processing, completed, failed
+- Each job has a unique ID, file path, status, and processing metadata
+- Progress is saved at each pipeline stage for resumability
+
+## File Organization
+
+Output structure:
+```
+output/
+  project_name_timestamp/
+    search_phrase_1/
+      score##_video_title.mp4
+    search_phrase_2/
+      score##_video_title.mp4
+```
+
+## Error Handling
+
+- Services use exponential backoff retry logic for API calls
+- Database transactions ensure job state consistency
+- Graceful shutdown handling with SIGINT/SIGTERM
+- Comprehensive logging throughout the pipeline
