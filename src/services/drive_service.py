@@ -165,6 +165,10 @@ class DriveService:
             if item.is_file():
                 self._upload_file(item, drive_folder_id)
             elif item.is_dir():
+                # Skip empty folders
+                if not any(item.iterdir()):
+                    logger.debug(f"Skipping empty folder: {item.name}")
+                    continue
                 # Create subfolder and upload its contents
                 subfolder_id = self._create_folder(item.name, drive_folder_id)
                 self._upload_directory_contents(item, subfolder_id)
