@@ -167,10 +167,10 @@ class FileOrganizer:
             source_base = Path(source_filename).stem
             source_base = self._sanitize_folder_name(source_base)[:30]
             file_hash = self._get_file_hash(file_path)
-            return f"stockpile_{source_base}_{file_hash}_{timestamp}"
+            return f"{source_base}_{file_hash}_{timestamp}"
         else:
             file_hash = self._get_file_hash(file_path)
-            return f"stockpile_project_{file_hash}_{timestamp}"
+            return f"{file_hash}_{timestamp}"
 
     def create_project_structure(self, file_path: str, source_filename: str) -> str:
         """Create the main project directory only. Phrase subdirectories are created on-demand.

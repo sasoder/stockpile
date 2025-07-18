@@ -222,6 +222,10 @@ class BRollProcessor:
             total_videos,
         )
 
+        # Clean up local output if Google Drive is configured
+        if self.drive_service and project_dir:
+            await self._cleanup_local_output(project_dir)
+
     async def transcribe_audio(self, file_path: str) -> str:
         """Transcribe audio content using Whisper."""
         if not self.transcription_service.is_supported_file(file_path):
@@ -296,9 +300,9 @@ class BRollProcessor:
         if source_filename:
             source_base = Path(source_filename).stem
             source_base = self.file_organizer._sanitize_folder_name(source_base)[:30]
-            return f"stockpile_{source_base}_{file_hash}_{timestamp}"
+            return f"{source_base}_{file_hash}_{timestamp}"
         else:
-            return f"stockpile_project_{file_hash}_{timestamp}"
+            return f"{file_hash}_{timestamp}"
 
     def _format_processing_time(self, seconds: float) -> str:
         """Format processing time in human-readable format."""
@@ -340,3 +344,15 @@ class BRollProcessor:
             logger.info(f"Email notification sent: {status}")
         except Exception as e:
             logger.error(f"Failed to send email notification: {e}")
+
+    async def _cleanup_local_output(self, project_dir: str) -> None:
+        """Clean up local output directory after successful Drive upload."""
+        import shutil
+
+        try:
+            if Path(project_dir).exists():
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, shutil.rmtree, project_dir)
+                logger.info(f"Cleaned up local output directory: {project_dir}")
+        except Exception as e:
+            logger.warning(f"Failed to clean up local directory {project_dir}: {e}")
