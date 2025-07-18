@@ -1,4 +1,4 @@
-"""Configuration loading and validation for Stockpile."""
+"""Configuration loading and validation for stockpile."""
 
 import os
 import logging

@@ -1,4 +1,4 @@
-"""Main application entry point for Stockpile."""
+"""Main application entry point for stockpile."""
 
 import asyncio
 import logging
@@ -12,19 +12,19 @@ from utils.config import setup_logging, load_config
 logger = logging.getLogger(__name__)
 
 
-class BRollApp:
-    """Main application class for Stockpile."""
+class StockpileApp:
+    """Main application class for stockpile."""
 
     def __init__(self):
         self.processor: Optional[BRollProcessor] = None
         self.running = False
 
     async def start(self) -> None:
-        """Start the Stockpile application."""
+        """Start the stockpile application."""
         try:
             # Setup logging
             setup_logging()
-            logger.info("Starting Stockpile...")
+            logger.info("Starting stockpile...")
 
             # Initialize processor
             config = load_config()
@@ -38,7 +38,7 @@ class BRollApp:
             signal.signal(signal.SIGINT, self._signal_handler)
             signal.signal(signal.SIGTERM, self._signal_handler)
 
-            logger.info("Stockpile started successfully")
+            logger.info("stockpile started successfully")
 
             # Keep the application running
             while self.running:
@@ -58,7 +58,7 @@ def main():
     """Main entry point."""
     import sys
 
-    app = BRollApp()
+    app = StockpileApp()
 
     try:
         # Start daemon

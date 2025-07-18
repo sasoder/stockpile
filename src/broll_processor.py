@@ -1,4 +1,4 @@
-"""Main Stockpile class for orchestrating the entire workflow."""
+"""Main stockpile class for orchestrating the entire workflow."""
 
 import logging
 import time
@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 class BRollProcessor:
-    """Central orchestrator for Stockpile."""
+    """Central orchestrator for stockpile."""
 
     def __init__(self, config: Optional[Dict] = None):
-        """Initialize the Stockpile with configuration."""
+        """Initialize the stockpile with configuration."""
         self.config = config or load_config()
         self.processing_files: Set[str] = set()
         self.event_loop = None
@@ -63,8 +63,6 @@ class BRollProcessor:
 
         output_folder_id = self.config.get("google_drive_output_folder_id")
         if output_folder_id:
-            client_id = self.config.get("google_client_id")
-            client_secret = self.config.get("google_client_secret")
             if not client_id:
                 raise ValueError(
                     "Google Drive requires GOOGLE_CLIENT_ID environment variable"
@@ -81,11 +79,11 @@ class BRollProcessor:
 
         self.file_monitor = FileMonitor(self.config, self._handle_new_file)
 
-        logger.info("Stockpile initialized successfully")
+        logger.info("stockpile initialized successfully")
 
     def start(self) -> None:
         """Start the processor."""
-        logger.info("Starting Stockpile...")
+        logger.info("Starting stockpile...")
 
         self.event_loop = asyncio.get_running_loop()
 
@@ -214,11 +212,9 @@ class BRollProcessor:
             self.file_organizer._cleanup_empty_directories,
         )
 
-        message = f"Successfully processed {len(search_phrases)} phrases and downloaded {total_videos} videos"
         processing_time = self._format_processing_time(time.time() - start_time)
         await self._send_notification(
             "completed",
-            message,
             project_dir,
             drive_folder_url,
             processing_time,
@@ -316,7 +312,6 @@ class BRollProcessor:
     async def _send_notification(
         self,
         status: str,
-        message: str,
         output_path: Optional[str] = None,
         drive_folder_url: Optional[str] = None,
         processing_time: Optional[str] = None,
@@ -328,7 +323,7 @@ class BRollProcessor:
             logger.debug("Email notifications not configured, skipping notification")
             return
 
-        logger.info(f"Sending notification: {status} - {message}")
+        logger.info(f"Sending notification: {status}")
 
         loop = asyncio.get_event_loop()
         try:
@@ -336,7 +331,6 @@ class BRollProcessor:
                 None,
                 self.notification_service.send_notification,
                 status,
-                message,
                 output_path,
                 drive_folder_url,
                 processing_time,

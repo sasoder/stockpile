@@ -1,1 +1,1 @@
-# Service implementations for Stockpile
+# Service implementations for stockpile

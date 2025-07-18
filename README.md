@@ -1,118 +1,117 @@
-# B-Roll Video Processor
+# 🎬 stockpile
 
-An automated Python application that helps video content creators find and organize relevant B-roll footage. The system processes uploaded videos by transcribing audio content, extracting contextual search phrases using AI, finding matching B-roll videos from YouTube, and organizing them into structured project folders.
+Upload video to Google Drive → Get Gmail notification 5 minutes later → Click link to b-roll organized by topic. Uses AI to search and score relevant footage. Works locally or syncs with Google Drive.
 
-## Features
+## ⚡ Quick Start (Local)
 
-- **Automated File Detection**: Monitors local folders and Google Drive for new video uploads
-- **Transcription**: Uses OpenAI Whisper to convert video/audio to text
-- **AI-Powered Search**: Extracts relevant search phrases from transcripts using Google Gemini
-- **YouTube Integration**: Searches and downloads high-quality B-roll content using yt-dlp
-- **Flexible Storage**: Supports both local directories and Google Drive for input/output
-- **Smart Organization**: Creates project folders with phrase-based subfolders
-- **Progress Tracking**: SQLite database tracks job status with resumable processing
-- **Email Notifications**: Optional Gmail integration for job completion alerts
+**Requirements:** Python 3.8+, FFmpeg, Google Gemini API key
 
-## Installation
-
-### 1. Install system dependencies first
 ```bash
-# macOS
-brew install ffmpeg
+# clone and install
+git clone https://github.com/yourusername/stockpile.git
+cd stockpile
+# set up virtual environment
+python -m venv .venv
+source .venv/bin/activate
 
-# Ubuntu/Debian
-sudo apt update && sudo apt install ffmpeg
-
-# Windows (using Chocolatey)
-choco install ffmpeg
-```
-
-### 2. Clone and setup Python environment
-```bash
-git clone <your-repo-url>
-cd broll-video-processor
-
-# Create virtual environment
-python -m venv venv
-
-# Activate it
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Install Python dependencies
+# install dependencies
 pip install -r requirements.txt
-```
 
-### 3. Configure environment
-```bash
+# configure
 cp .env.example .env
-# Edit .env with your actual values
+# add your GEMINI_API_KEY to .env
+
+# run locally
+python stockpile.py
 ```
 
-## Configuration
+Drop videos in `input/`, get organized b-roll in `output/`.
 
-Edit your `.env` file with these settings:
+## ☁️ Google Drive Integration (recommended)
 
-### Required
-- `GEMINI_API_KEY` - Get from [Google AI Studio](https://aistudio.google.com/)
+For cloud workflow with automated Drive uploads:
 
-### Input Sources (need at least one)
-- `LOCAL_INPUT_FOLDER=./input` - Local folder to watch for videos
-- `GOOGLE_DRIVE_INPUT_FOLDER_ID=` - Google Drive folder ID to monitor
+**1. Create OAuth Client:**
 
-### Output Destinations (need at least one)  
-- `LOCAL_OUTPUT_FOLDER=./output` - Where to save organized B-roll locally
-- `GOOGLE_DRIVE_OUTPUT_FOLDER_ID=` - Google Drive folder for output
+- Create a Google Cloud project
+- Enable Google Drive API and Gmail API
+- Go to [Google Cloud Console OAuth Clients](https://console.cloud.google.com/auth/clients) to create a new client.
+- Save the client ID and secret to your `.env` file.
+- When you start the script for the first time, it will prompt you to authorize your client.
 
-### Google Drive (if using Drive features)
-- `GOOGLE_CLIENT_ID=` - OAuth client ID from Google Cloud Console
-- `GOOGLE_CLIENT_SECRET=` - OAuth client secret
+**2. Configure Drive folders:**
 
-### Optional Settings
-- `GMAIL_USER=` / `GMAIL_PASSWORD=` - For email notifications (use App Password)
-- `WHISPER_MODEL=base` - Whisper model size (tiny/base/small/medium/large)
-- `GEMINI_MODEL=gemma-3-27b-it` - AI model for phrase extraction
-- `MAX_VIDEOS_PER_PHRASE=3` - B-roll videos to download per search phrase
-
-## Usage
-
-### Start the daemon (monitors folders automatically)
 ```bash
-python -m src.main
+# Add to .env
+GOOGLE_DRIVE_INPUT_FOLDER_ID=your_input_folder_id
+GOOGLE_DRIVE_OUTPUT_FOLDER_ID=your_output_folder_id
+GOOGLE_CLIENT_ID=your_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_oauth_client_secret
+NOTIFICATION_EMAIL=your@email.com
 ```
 
-### Process a single file
+Now drop videos in your Google Drive input folder, get organized b-roll uploaded to your output folder with email notification when complete.
+
+## How it works
+
+1. **Drop** your video in input folder (local or Google Drive)
+2. **AI transcribes** and extracts key topics from your content
+3. **YouTube search** finds high-quality b-roll for each topic
+4. **AI evaluates** each video for b-roll quality and visual relevance
+5. **Get organized folders** with scored videos ready to edit
+
+```
+📁 output/
+  └── your_project_20250718/
+      ├── 🏭 industrial_revolution_factory/
+      │   ├── score08_vintage_factory_footage.mp4
+      │   └── score09_steam_engine_documentary.mp4
+      ├── ⚙️ steel_production_process/
+      │   └── score07_molten_steel_pouring.mp4
+      └── 👷 workers_assembly_line/
+          └── score08_ford_assembly_line_1920s.mp4
+```
+
+## 🖥️ VPS Deployment
+
+For cloud deployment, use the same OAuth setup as above:
+
 ```bash
-python -m src.main process /path/to/video.mp4
+# Deploy to your VPS
+git clone https://github.com/yourusername/stockpile.git
+cd stockpile
+pip install -r requirements.txt
+
+# Configure same as Google Drive integration
+cp .env.example .env
+# Add your API keys and OAuth credentials
 ```
 
-### Check processing status
+**Authentication Note:** On first run, you'll need to visit an authentication URL to authorize Google API access. The program will display this URL in the terminal output.
+
+**Docker deployment:**
+
+```dockerfile
+FROM python:3.9-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["python", "-m", "src.main"]
+```
+
 ```bash
-python -m src.main status
+docker build -t stockpile .
+docker run -d --name stockpile -v $(pwd)/.env:/app/.env stockpile
 ```
 
-## How It Works
+## ⚙️ Configuration
 
-1. **File Detection**: Monitors input folders for new video files
-2. **Transcription**: Extracts audio and converts to text using Whisper
-3. **Phrase Extraction**: AI analyzes transcript to find B-roll search terms
-4. **YouTube Search**: Finds relevant B-roll videos for each phrase
-5. **Download & Organize**: Downloads videos into organized folder structure
-6. **Notification**: Sends email when processing completes
+- `GEMINI_API_KEY` - get from Google AI Studio (required)
+- `MAX_VIDEOS_PER_PHRASE=3` - videos downloaded per topic
+- `MAX_VIDEO_DURATION_SECONDS=900` - skip videos longer than 15min
+- **Local:** uses `LOCAL_INPUT_FOLDER` and `LOCAL_OUTPUT_FOLDER` folders
+- **Google Drive:** set `GOOGLE_DRIVE_INPUT_FOLDER_ID` and `GOOGLE_DRIVE_OUTPUT_FOLDER_ID`
+- **Notifications:** add `NOTIFICATION_EMAIL` for completion alerts
 
-## Supported Formats
-
-**Video**: .mp4, .avi, .mov, .mkv, .wmv, .flv, .webm, .m4v  
-**Audio**: .mp3, .wav, .flac, .aac, .ogg, .m4a, .wma
-
-## Troubleshooting
-
-**FFmpeg not found**: Make sure ffmpeg is installed and in your PATH
-
-**Google Drive auth**: First run opens browser for OAuth - follow the prompts
-
-**Gmail not working**: Use an App Password, not your regular Gmail password
-
-**Import errors**: Make sure you activated the virtual environment and installed requirements.txt
+Questions? Check `src/broll_processor.log` or [open an issue](https://github.com/yourusername/stockpile/issues).

@@ -114,7 +114,6 @@ class NotificationService:
     def send_notification(
         self,
         status: str,
-        message: str,
         output_path: Optional[str] = None,
         drive_folder_url: Optional[str] = None,
         processing_time: Optional[str] = None,
@@ -125,7 +124,6 @@ class NotificationService:
 
         Args:
             status: Job status ('completed' or 'failed')
-            message: Status message
             output_path: Local output path (if applicable)
             drive_folder_url: Google Drive folder URL (if applicable)
             processing_time: Human-readable processing time (if applicable)
@@ -137,7 +135,6 @@ class NotificationService:
             subject = self._create_subject(status)
             body = self._create_email_body(
                 status,
-                message,
                 output_path,
                 drive_folder_url,
                 processing_time,
@@ -160,14 +157,13 @@ class NotificationService:
     def _create_subject(self, status: str) -> str:
         """Create email subject line."""
         if status == "completed":
-            return "Your B-roll videos are ready"
+            return "🎬 Your B-roll videos are ready"
         else:
-            return "Issue with your B-roll processing"
+            return "⚠️ Issue with your B-roll processing"
 
     def _create_email_body(
         self,
         status: str,
-        message: str,
         output_path: Optional[str] = None,
         drive_folder_url: Optional[str] = None,
         processing_time: Optional[str] = None,
@@ -178,12 +174,12 @@ class NotificationService:
         # Create simple text email body
         output_info = ""
         if drive_folder_url:
-            output_info = f"\nGoogle Drive: {drive_folder_url}"
+            output_info = f"\nGoogle Drive link: {drive_folder_url}"
         elif output_path:
             output_info = f"\nLocal folder: {output_path}"
 
         # Add processing time if available
-        time_info = f"\nProcessing Time: {processing_time}" if processing_time else ""
+        time_info = f"\n\n- Took {processing_time}" if processing_time else ""
 
         # Add input file information if available
         input_info = ""
@@ -191,28 +187,22 @@ class NotificationService:
             from pathlib import Path
 
             input_filename = Path(input_file).name
-            input_info = f"\nInput File: {input_filename}"
+            input_info = f"\n\n- Input file: {input_filename}"
 
         # Add video count information if available
         video_info = ""
         if video_count is not None:
-            video_info = f"\nVideos Found: {video_count}"
+            video_info = f"\n\n- Found {video_count} videos"
 
         if status == "completed":
-            body = f"""Hi there,
+            body = f"""Your B-roll videos have been processed and are ready.{input_info}{time_info}{video_info}
 
-Your B-roll videos have been processed and are ready.{input_info}{time_info}{video_info}
-
-{message}{output_info}
-
-All set for editing.
+{output_info}
 """
         else:
-            body = f"""Hi there,
+            body = f"""stockpile ran into an issue while processing your B-roll videos.{input_info}{time_info}
 
-We ran into an issue while processing your B-roll videos.{input_info}{time_info}
-
-What happened: {message}{output_info}
+{output_info}
 
 You can try processing the file again or check the logs for more details.
 """
