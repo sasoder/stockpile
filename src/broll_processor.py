@@ -35,21 +35,11 @@ class BRollProcessor:
             logger.error(error_msg)
             raise ValueError(error_msg)
 
-        whisper_model = self.config.get("whisper_model", "base")
-        self.transcription_service = TranscriptionService(whisper_model)
-
         gemini_api_key = self.config.get("gemini_api_key")
         if not gemini_api_key:
             raise ValueError("Gemini API key is required")
-        gemini_model = self.config.get("gemini_model", "gemini-2.0-flash-001")
+        gemini_model = self.config.get("gemini_model", "gemma-3-27b-it")
         self.ai_service = AIService(gemini_api_key, gemini_model)
-
-        max_videos_per_phrase = self.config.get("max_videos_per_phrase", 3)
-        self.youtube_service = YouTubeService(max_results=max_videos_per_phrase * 3)
-
-        output_dir = self.config.get("local_output_folder", "../output")
-        self.video_downloader = VideoDownloader(output_dir)
-        self.file_organizer = FileOrganizer(output_dir)
 
         client_id = self.config.get("google_client_id")
         client_secret = self.config.get("google_client_secret")
@@ -60,6 +50,16 @@ class BRollProcessor:
             )
         else:
             self.notification_service = None
+
+        max_videos_per_phrase = self.config.get("max_videos_per_phrase", 3)
+        self.youtube_service = YouTubeService(max_results=max_videos_per_phrase * 3)
+
+        whisper_model = self.config.get("whisper_model", "base")
+        self.transcription_service = TranscriptionService(whisper_model)
+
+        output_dir = self.config.get("local_output_folder", "../output")
+        self.video_downloader = VideoDownloader(output_dir)
+        self.file_organizer = FileOrganizer(output_dir)
 
         output_folder_id = self.config.get("google_drive_output_folder_id")
         if output_folder_id:
