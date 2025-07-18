@@ -5,7 +5,6 @@ import base64
 import os
 from email.mime.text import MIMEText
 from typing import Optional
-from datetime import datetime
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -160,8 +159,10 @@ class NotificationService:
 
     def _create_subject(self, status: str) -> str:
         """Create email subject line."""
-        status_text = "Completed" if status == "completed" else "Failed"
-        return f"Stockpile {status_text}"
+        if status == "completed":
+            return "Your B-roll videos are ready"
+        else:
+            return "Issue with your B-roll processing"
 
     def _create_email_body(
         self,
@@ -197,11 +198,23 @@ class NotificationService:
         if video_count is not None:
             video_info = f"\nVideos Found: {video_count}"
 
-        body = f"""Stockpile Processing {status.title()}
+        if status == "completed":
+            body = f"""Hi there,
 
-Status: {status.title()}
-Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{input_info}{time_info}{video_info}
-Message: {message}{output_info}
+Your B-roll videos have been processed and are ready.{input_info}{time_info}{video_info}
+
+{message}{output_info}
+
+All set for editing.
+"""
+        else:
+            body = f"""Hi there,
+
+We ran into an issue while processing your B-roll videos.{input_info}{time_info}
+
+What happened: {message}{output_info}
+
+You can try processing the file again or check the logs for more details.
 """
 
         return body
