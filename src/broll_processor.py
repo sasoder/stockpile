@@ -143,23 +143,22 @@ class BRollProcessor:
         logger.info(f"Extracted {len(search_phrases)} search phrases: {search_phrases}")
 
         source_filename = Path(file_path).name
-        project_dir = await self._create_project_structure(
-            file_path, source_filename, search_phrases
-        )
+        project_dir = await self._create_project_structure(file_path, source_filename)
         logger.info(f"Project structure created: {project_dir}")
 
-        drive_folder_structure = {}
+        drive_project_folder_id = None
         drive_folder_url = None
         if self.drive_service and source_filename:
             project_name = self._generate_project_name(file_path, source_filename)
             loop = asyncio.get_event_loop()
-            drive_folder_structure = await loop.run_in_executor(
+            drive_project_folder_id = await loop.run_in_executor(
                 None,
                 self.drive_service.create_project_structure,
                 project_name,
-                search_phrases,
             )
-            drive_folder_url = f"https://drive.google.com/drive/folders/{drive_folder_structure.get('project_id', '')}"
+            drive_folder_url = (
+                f"https://drive.google.com/drive/folders/{drive_project_folder_id}"
+            )
             logger.info(f"Google Drive structure created: {drive_folder_url}")
 
         logger.info(f"Processing {len(search_phrases)} search phrases")
@@ -173,15 +172,25 @@ class BRollProcessor:
             scored_videos = await self.evaluate_videos(phrase, video_results)
             logger.info(f"Selected {len(scored_videos)} top videos for: {phrase}")
 
+            # Skip if no videos to download
+            if not scored_videos:
+                logger.info(f"No videos to download for phrase: {phrase}")
+                continue
+
             phrase_folder = Path(
                 project_dir
             ) / self.file_organizer._sanitize_folder_name(phrase)
 
             drive_phrase_folder_id = None
-            if self.drive_service and drive_folder_structure:
-                drive_phrase_folder_id = drive_folder_structure.get(
-                    "phrase_folders", {}
-                ).get(phrase)
+            if self.drive_service:
+                # Create phrase folder on-demand
+                loop = asyncio.get_event_loop()
+                drive_phrase_folder_id = await loop.run_in_executor(
+                    None,
+                    self.drive_service.create_phrase_folder,
+                    phrase,
+                    drive_project_folder_id,
+                )
 
             loop = asyncio.get_event_loop()
             downloaded_files = await loop.run_in_executor(
@@ -197,6 +206,14 @@ class BRollProcessor:
             logger.info(f"Downloaded {len(downloaded_files)} files for: {phrase}")
 
         total_videos = sum(len(files) for files in phrase_downloads.values())
+
+        # Clean up any empty directories that may have been created
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            self.file_organizer._cleanup_empty_directories,
+        )
+
         message = f"Successfully processed {len(search_phrases)} phrases and downloaded {total_videos} videos"
         processing_time = self._format_processing_time(time.time() - start_time)
         await self._send_notification(
@@ -259,16 +276,15 @@ class BRollProcessor:
         return limited_videos
 
     async def _create_project_structure(
-        self, file_path: str, source_filename: str, phrases: List[str]
+        self, file_path: str, source_filename: str
     ) -> str:
         """Create the project folder structure upfront."""
         loop = asyncio.get_event_loop()
         project_path = await loop.run_in_executor(
             None,
             self.file_organizer.create_project_structure,
-            file_path,  # Use file_path as unique identifier
+            file_path,
             source_filename,
-            phrases,
         )
         return project_path
 

@@ -18,30 +18,6 @@ logging.getLogger("yt_dlp.downloader").setLevel(logging.CRITICAL)
 logging.getLogger("yt_dlp.postprocessor").setLevel(logging.CRITICAL)
 
 
-def video_filter(info: Dict) -> Optional[str]:
-    """Filter videos based on duration and other criteria.
-
-    Args:
-        info: Video information dictionary from yt-dlp
-
-    Returns:
-        String describing why video was filtered, or None if it passes
-    """
-    config = load_config()
-    max_duration = config.get("max_video_duration_seconds", 600)
-    max_size = config.get("max_video_size_mb", 100) * 1024 * 1024
-    # Check duration
-    duration = info.get("duration")
-    if duration is not None and duration > max_duration:
-        return f"Duration {duration}s exceeds maximum {max_duration}s"
-
-    size = info.get("filesize")
-    if size is not None and size > max_size:
-        return f"Size {size} exceeds maximum {max_size} bytes"
-
-    return None
-
-
 class VideoDownloader:
     """Service for downloading videos using yt-dlp with custom options."""
 
@@ -230,37 +206,10 @@ class VideoDownloader:
         }
 
         try:
-            # First, extract video info without downloading to pre-filter
-            info_opts = {
-                "quiet": True,
-                "no_warnings": True,
-            }
-
-            with yt_dlp.YoutubeDL(info_opts) as info_ydl:
-                info = info_ydl.extract_info(video.video_result.url, download=False)
-                if not info:
-                    logger.error(f"Could not extract info for video: {video.video_id}")
-                    return None
-
-                # Pre-filter video before starting download
-                filter_result = video_filter(info)
-                if filter_result:
-                    logger.info(f"Video {video.video_id} filtered out: {filter_result}")
-                    return None
-
-                # Get expected filename using the actual download template
-                expected_filename = str(
-                    output_dir
-                    / f'score{video.score:02d}_{info.get("title", "unknown")}.{info.get("ext", "mp4")}'
-                )
-                logger.info(
-                    f"Pre-filtering passed, starting download: {Path(expected_filename).name}"
-                )
-
             # Get list of files before download
             files_before = set(output_dir.glob("*"))
 
-            # Now download the video using the full options
+            # Download the video using the full options
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([video.video_result.url])
 
@@ -273,7 +222,9 @@ class VideoDownloader:
                     if file_path.is_file() and file_path.name.startswith(score_prefix):
                         return str(file_path)
 
-                logger.warning(f"Downloaded file not found: {expected_filename}")
+                logger.warning(
+                    f"No downloaded file found with score prefix: {score_prefix}"
+                )
                 return None
 
         except yt_dlp.DownloadError as e:

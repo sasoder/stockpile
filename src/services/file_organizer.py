@@ -172,31 +172,22 @@ class FileOrganizer:
             file_hash = self._get_file_hash(file_path)
             return f"stockpile_project_{file_hash}_{timestamp}"
 
-    def create_project_structure(
-        self, file_path: str, source_filename: str, phrases: List[str]
-    ) -> str:
-        """Create the complete project folder structure upfront.
+    def create_project_structure(self, file_path: str, source_filename: str) -> str:
+        """Create the main project directory only. Phrase subdirectories are created on-demand.
 
         Args:
             file_path: Path to the source file being processed
             source_filename: Name of the original video/audio file
-            phrases: List of search phrases to create folders for
 
         Returns:
             Path to the created project directory
         """
         project_name = self._generate_project_name(file_path, source_filename)
-
         project_dir = self.base_output_dir / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create phrase subdirectories
-        for phrase in phrases:
-            phrase_dir = project_dir / self._sanitize_folder_name(phrase)
-            phrase_dir.mkdir(parents=True, exist_ok=True)
-
         logger.info(
-            f"Created project structure: {project_dir} for video {source_filename}"
+            f"Created project directory: {project_dir} for video {source_filename}"
         )
         return str(project_dir)
 

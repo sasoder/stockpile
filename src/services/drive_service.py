@@ -3,7 +3,6 @@
 import logging
 import os
 from pathlib import Path
-from typing import List, Dict, Union
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
@@ -181,39 +180,48 @@ class DriveService:
             raise
 
     @retry_api_call(max_retries=3, base_delay=2.0)
-    def create_project_structure(
-        self, project_name: str, phrase_names: List[str]
-    ) -> Dict[str, Union[str, Dict[str, str]]]:
-        """Create complete project folder structure in Drive.
+    def create_project_structure(self, project_name: str) -> str:
+        """Create main project folder in Drive. Phrase subfolders are created on-demand.
 
         Args:
             project_name: Name of the project folder
-            phrase_names: List of phrase names to create subfolders for
 
         Returns:
-            Dictionary with 'project_id' and 'phrase_folders' mapping phrase -> folder_id
+            Project folder ID
         """
         try:
-            # Create main project folder
+            # Create main project folder only
             project_folder_id = self._create_folder(project_name, self.output_folder_id)
 
-            # Create phrase subfolders
-            phrase_folders = {}
-            for phrase in phrase_names:
-                # Sanitize phrase name for folder
-                sanitized_phrase = self._sanitize_folder_name(phrase)
-                phrase_folder_id = self._create_folder(
-                    sanitized_phrase, project_folder_id
-                )
-                phrase_folders[phrase] = phrase_folder_id
-
-            logger.info(
-                f"Created Drive project structure: {project_name} with {len(phrase_folders)} phrase folders"
-            )
-            return {"project_id": project_folder_id, "phrase_folders": phrase_folders}
+            logger.info(f"Created Drive project folder: {project_name}")
+            return project_folder_id
 
         except Exception as e:
             logger.error(f"Failed to create Drive project structure: {e}")
+            if "quota" in str(e).lower():
+                raise TemporaryServiceError(f"Google Drive quota exceeded: {e}")
+            elif "network" in str(e).lower():
+                raise NetworkError(f"Network error: {e}")
+            raise
+
+    @retry_api_call(max_retries=3, base_delay=2.0)
+    def create_phrase_folder(self, phrase: str, project_folder_id: str) -> str:
+        """Create a phrase folder on-demand within a project folder.
+
+        Args:
+            phrase: Search phrase name
+            project_folder_id: ID of the parent project folder
+
+        Returns:
+            Phrase folder ID
+        """
+        try:
+            sanitized_phrase = self._sanitize_folder_name(phrase)
+            phrase_folder_id = self._create_folder(sanitized_phrase, project_folder_id)
+            logger.info(f"Created Drive phrase folder: {sanitized_phrase}")
+            return phrase_folder_id
+        except Exception as e:
+            logger.error(f"Failed to create Drive phrase folder '{phrase}': {e}")
             if "quota" in str(e).lower():
                 raise TemporaryServiceError(f"Google Drive quota exceeded: {e}")
             elif "network" in str(e).lower():

@@ -6,6 +6,7 @@ from typing import List, Dict, Optional
 
 from models.video import VideoResult
 from utils.retry import retry_api_call, NetworkError, TemporaryServiceError
+from utils.config import load_config
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,31 @@ logger = logging.getLogger(__name__)
 logging.getLogger("yt_dlp").setLevel(logging.CRITICAL)
 logging.getLogger("yt_dlp.extractor").setLevel(logging.CRITICAL)
 logging.getLogger("yt_dlp.downloader").setLevel(logging.CRITICAL)
+
+
+def video_filter(info: Dict) -> Optional[str]:
+    """Filter videos based on duration and other criteria.
+
+    Args:
+        info: Video information dictionary from yt-dlp
+
+    Returns:
+        String describing why video was filtered, or None if it passes
+    """
+    config = load_config()
+    max_duration = config.get("max_video_duration_seconds", 600)
+    max_size = config.get("max_video_size_mb", 100) * 1024 * 1024
+
+    # Check duration
+    duration = info.get("duration")
+    if duration is not None and duration > max_duration:
+        return f"Duration {duration}s exceeds maximum {max_duration}s"
+
+    size = info.get("filesize")
+    if size is not None and size > max_size:
+        return f"Size {size} exceeds maximum {max_size} bytes"
+
+    return None
 
 
 class YouTubeService:
@@ -47,15 +73,28 @@ class YouTubeService:
                     return []
 
                 video_results = []
+                filtered_count = 0
                 for entry in search_results["entries"]:
                     if entry is None:
+                        continue
+
+                    # Filter video before parsing
+                    filter_result = video_filter(entry)
+                    if filter_result:
+                        filtered_count += 1
+                        logger.debug(
+                            f"Video {entry.get('id', 'unknown')} filtered: {filter_result}"
+                        )
                         continue
 
                     video_result = self._parse_video_entry(entry)
                     if video_result:
                         video_results.append(video_result)
 
-                logger.debug(f"Found {len(video_results)} videos for '{search_phrase}'")
+                if filtered_count > 0:
+                    logger.info(
+                        f"Filtered out {filtered_count} videos that didn't meet criteria"
+                    )
                 return video_results
 
         except Exception as e:
