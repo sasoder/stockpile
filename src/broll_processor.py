@@ -114,7 +114,6 @@ class BRollProcessor:
             return
 
         self.processing_files.add(file_path)
-        logger.info(f"Starting processing: {file_path}")
 
         start_time = time.time()
 

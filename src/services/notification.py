@@ -125,7 +125,6 @@ class NotificationService:
         """Send email notification about job completion.
 
         Args:
-            job_id: Job identifier
             status: Job status ('completed' or 'failed')
             message: Status message
             output_path: Local output path (if applicable)

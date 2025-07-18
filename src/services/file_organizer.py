@@ -24,14 +24,14 @@ class FileOrganizer:
 
     def organize_files(
         self,
-        job_id: str,
+        file_path: str,
         phrase_downloads: Dict[str, List[str]],
         source_filename: str | None = None,
     ) -> str:
         """Organize downloaded files into structured project folders.
 
         Args:
-            job_id: Unique job identifier
+            file_path: Path to the source file being processed
             phrase_downloads: Dictionary mapping phrases to lists of downloaded file paths
             source_filename: Name of the original video/audio file that triggered this job
 
@@ -39,15 +39,15 @@ class FileOrganizer:
             Path to the organized project folder
         """
         if not phrase_downloads:
-            logger.warning(f"No files to organize for job: {job_id}")
+            logger.warning(f"No files to organize for file: {file_path}")
             return ""
 
-        project_name = self._generate_project_name(job_id, source_filename)
+        project_name = self._generate_project_name(file_path, source_filename)
 
         project_dir = self.base_output_dir / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Organizing files for job {job_id} into: {project_dir}")
+        logger.info(f"Organizing files for {file_path} into: {project_dir}")
 
         # Create project structure
         organized_files = {}
@@ -143,8 +143,21 @@ class FileOrganizer:
 
         return sanitized[:50]
 
+    def _get_file_hash(self, file_path: str) -> str:
+        """Generate a hash from the file path for unique identification.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            8-character hash string
+        """
+        import hashlib
+
+        return hashlib.md5(file_path.encode()).hexdigest()[:8]
+
     def _generate_project_name(
-        self, job_id: str, source_filename: str | None = None
+        self, file_path: str, source_filename: str | None = None
     ) -> str:
         from datetime import datetime
 
@@ -153,24 +166,26 @@ class FileOrganizer:
         if source_filename:
             source_base = Path(source_filename).stem
             source_base = self._sanitize_folder_name(source_base)[:30]
-            return f"stockpile_{source_base}_{job_id[:8]}_{timestamp}"
+            file_hash = self._get_file_hash(file_path)
+            return f"stockpile_{source_base}_{file_hash}_{timestamp}"
         else:
-            return f"stockpile_project_{job_id[:8]}_{timestamp}"
+            file_hash = self._get_file_hash(file_path)
+            return f"stockpile_project_{file_hash}_{timestamp}"
 
     def create_project_structure(
-        self, job_id: str, source_filename: str, phrases: List[str]
+        self, file_path: str, source_filename: str, phrases: List[str]
     ) -> str:
         """Create the complete project folder structure upfront.
 
         Args:
-            job_id: Unique job identifier
+            file_path: Path to the source file being processed
             source_filename: Name of the original video/audio file
             phrases: List of search phrases to create folders for
 
         Returns:
             Path to the created project directory
         """
-        project_name = self._generate_project_name(job_id, source_filename)
+        project_name = self._generate_project_name(file_path, source_filename)
 
         project_dir = self.base_output_dir / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
@@ -180,7 +195,9 @@ class FileOrganizer:
             phrase_dir = project_dir / self._sanitize_folder_name(phrase)
             phrase_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Created project structure: {project_dir} for video {source_filename}")
+        logger.info(
+            f"Created project structure: {project_dir} for video {source_filename}"
+        )
         return str(project_dir)
 
     def _cleanup_empty_directories(self) -> None:

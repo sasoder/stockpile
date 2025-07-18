@@ -38,7 +38,7 @@ class YouTubeService:
         logger.info(f"Searching YouTube for: '{search_phrase}'")
 
         try:
-            search_query = f"ytsearch{self.max_results}:{search_phrase}"
+            search_query = f"ytsearch{self.max_results}:{search_phrase} footage"
 
             with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
                 search_results = ydl.extract_info(search_query, download=False)
