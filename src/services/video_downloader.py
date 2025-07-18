@@ -12,7 +12,6 @@ from utils.config import load_config
 
 logger = logging.getLogger(__name__)
 
-# Configure yt-dlp logging to be silent
 logging.getLogger("yt_dlp").setLevel(logging.CRITICAL)
 logging.getLogger("yt_dlp.extractor").setLevel(logging.CRITICAL)
 logging.getLogger("yt_dlp.downloader").setLevel(logging.CRITICAL)
@@ -316,22 +315,10 @@ class VideoDownloader:
 
     @staticmethod
     def sanitize_filename(filename: str) -> str:
-        """Sanitize filename for filesystem compatibility.
-
-        Args:
-            filename: Original filename
-
-        Returns:
-            Sanitized filename safe for filesystem
-        """
-        # Remove or replace invalid characters
         filename = re.sub(r'[<>:"/\\|?*]', "_", filename)
         filename = re.sub(r"\s+", "_", filename)
-        filename = filename.strip("._")  # Remove leading/trailing dots and underscores
-
-        # Limit length and ensure it's not empty
+        filename = filename.strip("._")
         filename = filename[:50] if filename else "unnamed"
-
         return filename
 
     def cleanup_failed_downloads(self, phrase_dir: Path) -> None:
@@ -341,7 +328,6 @@ class VideoDownloader:
             phrase_dir: Directory to clean up
         """
         try:
-            # Look for common partial download patterns
             patterns = ["*.part", "*.tmp", "*.ytdl", "*.f*"]
 
             for pattern in patterns:

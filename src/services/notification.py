@@ -114,7 +114,6 @@ class NotificationService:
     @retry_api_call(max_retries=3, base_delay=2.0)
     def send_notification(
         self,
-        job_id: str,
         status: str,
         message: str,
         output_path: Optional[str] = None,
@@ -139,7 +138,6 @@ class NotificationService:
             # Create email content
             subject = self._create_subject(status)
             body = self._create_email_body(
-                job_id,
                 status,
                 message,
                 output_path,
@@ -152,15 +150,13 @@ class NotificationService:
             # Send email
             self._send_email(subject, body)
 
-            logger.info(f"Notification sent for job {job_id}: {status}")
+            logger.info(f"Notification sent: {status}")
 
         except HttpError as error:
-            logger.error(
-                f"Gmail API error sending notification for job {job_id}: {error}"
-            )
+            logger.error(f"Gmail API error sending notification: {error}")
             raise NetworkError(f"Gmail API error: {error}")
         except Exception as e:
-            logger.error(f"Failed to send notification for job {job_id}: {e}")
+            logger.error(f"Failed to send notification: {e}")
             raise
 
     def _create_subject(self, status: str) -> str:
@@ -170,7 +166,6 @@ class NotificationService:
 
     def _create_email_body(
         self,
-        job_id: str,
         status: str,
         message: str,
         output_path: Optional[str] = None,
@@ -205,7 +200,6 @@ class NotificationService:
 
         body = f"""Stockpile Processing {status.title()}
 
-Job ID: {job_id}
 Status: {status.title()}
 Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{input_info}{time_info}{video_info}
 Message: {message}{output_info}

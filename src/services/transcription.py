@@ -17,25 +17,16 @@ class TranscriptionService:
     """Service for transcribing audio content using OpenAI Whisper."""
 
     def __init__(self, model_name: str = "base"):
-        """Initialize Whisper model for audio transcription.
-
-        Args:
-            model_name: Whisper model size (tiny, base, small, medium, large, turbo)
-        """
         self.model_name = model_name
         self.model = None
-        self._transcription_lock = (
-            asyncio.Lock()
-        )  # Prevent concurrent access to shared model
+        self._transcription_lock = asyncio.Lock()
         self._load_model()
 
     def _load_model(self) -> None:
-        """Load the Whisper model."""
         try:
             logger.info(f"Loading Whisper model: {self.model_name}")
             self.model = whisper.load_model(self.model_name)
 
-            # Log model information
             is_multilingual = (
                 "multilingual" if self.model.is_multilingual else "English-only"
             )
@@ -66,7 +57,6 @@ class TranscriptionService:
         logger.info(f"Starting transcription of: {file_path.name}")
 
         try:
-            # Check if we need to extract audio from video
             if self._is_video_file(file_path):
                 audio_path = self._extract_audio_from_video(file_path)
                 cleanup_audio = True
@@ -74,13 +64,11 @@ class TranscriptionService:
                 audio_path = file_path
                 cleanup_audio = False
 
-            # Transcribe using Whisper with concurrency protection
             async with self._transcription_lock:
                 result = await asyncio.to_thread(
                     self._transcribe_with_whisper, str(audio_path)
                 )
 
-            # Cleanup temporary audio file if created
             if cleanup_audio:
                 Path(audio_path).unlink(missing_ok=True)
 
@@ -91,26 +79,14 @@ class TranscriptionService:
             raise
 
     def _transcribe_with_whisper(self, audio_path: str) -> str:
-        """Perform the actual transcription using Whisper.
-
-        This method is called from within asyncio.to_thread to avoid blocking.
-        Concurrency is controlled by the lock in transcribe_audio.
-
-        Args:
-            audio_path: Path to audio file
-
-        Returns:
-            Transcribed text
-        """
         try:
-            # Use model.transcribe() instead of manual pipeline to avoid concurrency issues
             if not self.model:
                 raise ValueError("Whisper model not loaded")
             result = self.model.transcribe(
                 str(audio_path),
-                language=None,  # Auto-detect language
+                language=None,
                 task="transcribe",
-                fp16=False,  # Use fp32 for better compatibility
+                fp16=False,
                 verbose=False,
             )
 
@@ -136,24 +112,22 @@ class TranscriptionService:
         """
         logger.info(f"Extracting audio from video: {video_path.name}")
 
-        # Create temporary audio file
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
             audio_path = temp_file.name
 
         try:
-            # Use ffmpeg to extract audio
             cmd = [
                 "ffmpeg",
                 "-i",
                 str(video_path),
-                "-vn",  # No video
+                "-vn",
                 "-acodec",
-                "pcm_s16le",  # PCM 16-bit little-endian
+                "pcm_s16le",
                 "-ar",
-                "16000",  # 16kHz sample rate (Whisper's preferred rate)
+                "16000",
                 "-ac",
-                "1",  # Mono audio
-                "-y",  # Overwrite output file
+                "1",
+                "-y",
                 audio_path,
             ]
 
@@ -164,37 +138,19 @@ class TranscriptionService:
 
         except subprocess.CalledProcessError as e:
             logger.error(f"FFmpeg failed: {e.stderr}")
-            # Cleanup failed extraction
             Path(audio_path).unlink(missing_ok=True)
             raise RuntimeError(f"Audio extraction failed: {e.stderr}")
 
         except Exception as e:
             logger.error(f"Audio extraction error: {e}")
-            # Cleanup on any error
             Path(audio_path).unlink(missing_ok=True)
             raise
 
     def _is_video_file(self, file_path: Path) -> bool:
-        """Check if file is a video format that needs audio extraction.
-
-        Args:
-            file_path: Path to file
-
-        Returns:
-            True if file is a video format
-        """
         video_extensions = get_supported_video_formats()
         return file_path.suffix.lower() in video_extensions
 
     def _is_audio_file(self, file_path: Path) -> bool:
-        """Check if file is an audio format.
-
-        Args:
-            file_path: Path to file
-
-        Returns:
-            True if file is an audio format
-        """
         audio_extensions = get_supported_audio_formats()
         return file_path.suffix.lower() in audio_extensions
 

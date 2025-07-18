@@ -233,25 +233,16 @@ Return only the JSON array, nothing else."""
                 ),
             )
 
-            # Parse JSON response
             try:
-                # Strip markdown code blocks if present
                 if not response.text:
                     logger.error("AI response is empty")
                     return []
-                response_text = strip_markdown_code_blocks(response.text)
-
-                scored_results = json.loads(response_text)
+                text = strip_markdown_code_blocks(response.text)
+                scored_results = json.loads(text)
             except json.JSONDecodeError:
-                logger.error(
-                    f"Failed to parse video evaluation response as JSON: {response.text}"
-                )
-                logger.warning(
-                    "Attempting to extract video IDs and scores from text response"
-                )
+                logger.warning("JSON parsing failed, extracting video IDs from text")
                 import re
 
-                # Try to extract video_id and score pairs from text
                 text = response.text
                 if not text:
                     logger.error("AI response is empty")

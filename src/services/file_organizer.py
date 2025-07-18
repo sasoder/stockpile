@@ -4,7 +4,6 @@ import logging
 import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +42,7 @@ class FileOrganizer:
             logger.warning(f"No files to organize for job: {job_id}")
             return ""
 
-        # Create project folder with timestamp and source filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        # Include source filename in project name if provided
-        if source_filename:
-            # Extract base name without extension and sanitize
-            source_base = Path(source_filename).stem
-            source_base = self._sanitize_folder_name(source_base)[:30]  # Limit length
-            project_name = f"stockpile_{source_base}_{job_id[:8]}_{timestamp}"
-        else:
-            project_name = f"stockpile_project_{job_id[:8]}_{timestamp}"
+        project_name = self._generate_project_name(job_id, source_filename)
 
         project_dir = self.base_output_dir / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
@@ -145,16 +134,28 @@ class FileOrganizer:
         """
         import re
 
-        # Replace invalid characters with underscores
         sanitized = re.sub(r'[<>:"/\\|?*]', "_", folder_name)
         sanitized = re.sub(r"\s+", "_", sanitized)
-        sanitized = sanitized.strip("._")
+        sanitized = sanitized.strip("._ ")
 
-        # Ensure it's not empty and not too long
         if not sanitized:
             sanitized = "unnamed_phrase"
 
-        return sanitized[:50]  # Limit length
+        return sanitized[:50]
+
+    def _generate_project_name(
+        self, job_id: str, source_filename: str | None = None
+    ) -> str:
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        if source_filename:
+            source_base = Path(source_filename).stem
+            source_base = self._sanitize_folder_name(source_base)[:30]
+            return f"stockpile_{source_base}_{job_id[:8]}_{timestamp}"
+        else:
+            return f"stockpile_project_{job_id[:8]}_{timestamp}"
 
     def create_project_structure(
         self, job_id: str, source_filename: str, phrases: List[str]
@@ -169,17 +170,7 @@ class FileOrganizer:
         Returns:
             Path to the created project directory
         """
-        from datetime import datetime
-
-        # Create project folder with timestamp and source filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        if source_filename:
-            source_base = Path(source_filename).stem
-            source_base = self._sanitize_folder_name(source_base)[:30]
-            project_name = f"stockpile_{source_base}_{job_id[:8]}_{timestamp}"
-        else:
-            project_name = f"stockpile_project_{job_id[:8]}_{timestamp}"
+        project_name = self._generate_project_name(job_id, source_filename)
 
         project_dir = self.base_output_dir / project_name
         project_dir.mkdir(parents=True, exist_ok=True)
@@ -189,7 +180,7 @@ class FileOrganizer:
             phrase_dir = project_dir / self._sanitize_folder_name(phrase)
             phrase_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Created project structure: {project_dir} for job {job_id}")
+        logger.info(f"Created project structure: {project_dir} for video {source_filename}")
         return str(project_dir)
 
     def _cleanup_empty_directories(self) -> None:
