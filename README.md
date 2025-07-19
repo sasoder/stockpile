@@ -1,4 +1,4 @@
-# 🎬 stockpile
+# 🎞️ stockpile
 
 Upload video to Google Drive → Get Gmail notification 5 minutes later → Click link to b-roll organized by topic. Uses AI to search and score relevant footage. Works locally or syncs with Google Drive.
 
@@ -50,15 +50,15 @@ GOOGLE_CLIENT_SECRET=your_oauth_client_secret
 NOTIFICATION_EMAIL=your@email.com
 ```
 
-Now drop videos in your Google Drive input folder, get organized b-roll uploaded to your output folder with email notification when complete.
+Now drop videos in your Google Drive input folder, get organized b-roll uploaded to your output folder with email notification when it's complete.
 
 ## How it works
 
-1. **Drop** your video in input folder (local or Google Drive)
-2. **AI transcribes** and extracts key topics from your content
-3. **YouTube search** finds high-quality b-roll for each topic
-4. **AI evaluates** each video for b-roll quality and visual relevance
-5. **Get organized folders** with scored videos ready to edit
+1. Drop your video in input folder (local or Google Drive)
+2. AI transcribes and extracts key topics/visuals from your clip
+3. YouTube search finds high-quality b-roll for each topic
+4. AI evaluates each video for b-roll quality and visual relevance
+5. Get a drive link to organized folders with scored videos ready to edit
 
 ```
 📁 output/
@@ -85,24 +85,6 @@ pip install -r requirements.txt
 # Configure same as Google Drive integration
 cp .env.example .env
 # Add your API keys and OAuth credentials
-```
-
-**Authentication Note:** On first run, you'll need to visit an authentication URL to authorize Google API access. The program will display this URL in the terminal output.
-
-**Docker deployment:**
-
-```dockerfile
-FROM python:3.9-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["python", "-m", "src.main"]
-```
-
-```bash
-docker build -t stockpile .
-docker run -d --name stockpile -v $(pwd)/.env:/app/.env stockpile
 ```
 
 ## ⚙️ Configuration
