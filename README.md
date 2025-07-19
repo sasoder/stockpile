@@ -2,6 +2,10 @@
 
 Upload video to Google Drive → Get Gmail notification 5 minutes later → Click link to b-roll organized by topic. Uses AI to search and score relevant footage. Works locally or syncs with Google Drive.
 
+    Example: Upload a podcast clip about the industrial revolution,
+    get folders of factory footage, worker scenes, and machinery
+    videos organized and ready to edit.
+
 ## ⚡ Quick Start (Local)
 
 **Requirements:** Python 3.8+, FFmpeg, Google Gemini API key
