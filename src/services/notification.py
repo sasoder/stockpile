@@ -179,7 +179,7 @@ class NotificationService:
             output_info = f"\nLocal folder: {output_path}"
 
         # Add processing time if available
-        time_info = f"\n\n- Took {processing_time}" if processing_time else ""
+        time_info = f"\n• Took {processing_time}" if processing_time else ""
 
         # Add input file information if available
         input_info = ""
@@ -187,12 +187,12 @@ class NotificationService:
             from pathlib import Path
 
             input_filename = Path(input_file).name
-            input_info = f"\n\n- Input file: {input_filename}"
+            input_info = f"\n• Input file: {input_filename}"
 
         # Add video count information if available
         video_info = ""
         if video_count is not None:
-            video_info = f"\n\n- Found {video_count} videos"
+            video_info = f"\n• Found {video_count} videos"
 
         if status == "completed":
             body = f"""Your B-roll videos have been processed and are ready.{input_info}{time_info}{video_info}
