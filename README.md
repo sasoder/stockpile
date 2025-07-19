@@ -72,21 +72,6 @@ Now drop videos in your Google Drive input folder, get organized b-roll uploaded
           └── score08_ford_assembly_line_1920s.mp4
 ```
 
-## 🖥️ VPS Deployment
-
-For cloud deployment, use the same OAuth setup as above:
-
-```bash
-# Deploy to your VPS
-git clone https://github.com/yourusername/stockpile.git
-cd stockpile
-pip install -r requirements.txt
-
-# Configure same as Google Drive integration
-cp .env.example .env
-# Add your API keys and OAuth credentials
-```
-
 ## ⚙️ Configuration
 
 - `GEMINI_API_KEY` - get from Google AI Studio (required)
