@@ -269,20 +269,26 @@ class FileMonitor:
             )
 
             files = results.get("files", [])
+            current_file_ids = set()
 
             for file in files:
-                if (
-                    self._is_video_file(file)
-                    and file["id"] not in self.known_drive_files
-                ):
-                    # New video file found
-                    self.known_drive_files.add(file["id"])
+                if self._is_video_file(file):
+                    current_file_ids.add(file["id"])
+                    
+                    # Check if this is a new file (not previously known)
+                    if file["id"] not in self.known_drive_files:
+                        # Download file temporarily for processing
+                        temp_path = await self._download_drive_file(file)
+                        if temp_path:
+                            # Only mark as known after successful download
+                            self.known_drive_files.add(file["id"])
+                            logger.info(f"New Google Drive video file: {file['name']}")
+                            self.file_callback(temp_path, "google_drive")
+                        else:
+                            logger.warning(f"Failed to download file {file['name']}, will retry next poll")
 
-                    # Download file temporarily for processing
-                    temp_path = await self._download_drive_file(file)
-                    if temp_path:
-                        logger.info(f"New Google Drive video file: {file['name']}")
-                        self.file_callback(temp_path, "google_drive")
+            # Update known files to current state (removes deleted files from tracking)
+            self.known_drive_files = current_file_ids
 
         except Exception as e:
             logger.error(f"Error checking for new Google Drive files: {e}")

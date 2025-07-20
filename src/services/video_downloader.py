@@ -112,17 +112,22 @@ class VideoDownloader:
                     downloaded_files.append(downloaded_file)
                     logger.info(f"Downloaded: {Path(downloaded_file).name}")
 
-                    # Upload to Drive if service and folder ID are provided
+                    # Start upload to Drive immediately (non-blocking)
                     if drive_service and drive_folder_id:
-                        try:
-                            drive_service.upload_file(downloaded_file, drive_folder_id)
-                            logger.info(
-                                f"Uploaded to Drive: {Path(downloaded_file).name}"
-                            )
-                        except Exception as e:
-                            logger.error(
-                                f"Drive upload failed for {Path(downloaded_file).name}: {e}"
-                            )
+                        from concurrent.futures import ThreadPoolExecutor
+                        import threading
+                        
+                        def upload_task():
+                            try:
+                                drive_service.upload_file(downloaded_file, drive_folder_id)
+                                logger.info(f"Uploaded to Drive: {Path(downloaded_file).name}")
+                            except Exception as e:
+                                logger.error(f"Drive upload failed for {Path(downloaded_file).name}: {e}")
+                        
+                        # Use dedicated thread pool for uploads
+                        if not hasattr(self, '_upload_executor'):
+                            self._upload_executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="upload")
+                        self._upload_executor.submit(upload_task)
                 else:
                     logger.warning(f"Failed to download video: {video.video_id}")
             except Exception as e:
