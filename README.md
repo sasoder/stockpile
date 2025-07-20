@@ -1,18 +1,28 @@
 # 🎞️ stockpile
 
-Upload video to Google Drive → Get Gmail notification 5 minutes later → Click link to b-roll organized by topic. Uses AI to search and score relevant footage. Works locally or syncs with Google Drive.
+Drop a clip, get b-roll automatically. AI finds and scores relevant footage from YouTube. Made this for my brother who mainly creates tiktoks but might be useful for other content creators.
 
-    Example: Upload a podcast clip about the industrial revolution,
-    get folders of factory footage, worker scenes, and machinery
-    videos organized and ready to edit.
+## Example
+
+**1. Drop video in input folder:**
+
+<img src="media/input.gif" width="700" alt="Input Process">
+
+**2. Get notification when processing completes:**
+
+<img src="media/notif.gif" width="700" alt="Notification">
+
+**3. Access organized b-roll folders:**
+
+<img src="media/output.gif" width="700" alt="Output Result">
 
 ## ⚡ Quick Start (Local)
 
-**Requirements:** Python 3.8+, FFmpeg, Google Gemini API key
+**Requirements:** Python, [FFmpeg](https://ffmpeg.org/download.html), [Gemini API key](https://aistudio.google.com/apikey)
 
 ```bash
 # clone and install
-git clone https://github.com/yourusername/stockpile.git
+git clone https://github.com/sasoder/stockpile.git
 cd stockpile
 # set up virtual environment
 python -m venv .venv
@@ -84,5 +94,3 @@ Now drop videos in your Google Drive input folder, get organized b-roll uploaded
 - **Local:** uses `LOCAL_INPUT_FOLDER` and `LOCAL_OUTPUT_FOLDER` folders
 - **Google Drive:** set `GOOGLE_DRIVE_INPUT_FOLDER_ID` and `GOOGLE_DRIVE_OUTPUT_FOLDER_ID`
 - **Notifications:** add `NOTIFICATION_EMAIL` for completion alerts
-
-Questions? Check `src/broll_processor.log` or [open an issue](https://github.com/yourusername/stockpile/issues).
