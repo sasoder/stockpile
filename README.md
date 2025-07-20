@@ -2,7 +2,7 @@
 
 Drop a clip, get b-roll automatically. AI finds and scores relevant footage from YouTube. Made this for my brother who mainly creates tiktoks but might be useful for other content creators.
 
-## Example
+## Example (with Google Drive)
 
 **1. Drop video in input folder:**
 
